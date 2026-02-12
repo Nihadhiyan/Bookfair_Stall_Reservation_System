@@ -40,6 +40,7 @@ public class SecurityConfig {
                 .csrf(customizer -> customizer.disable())
                 .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(request -> request
+                    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                     .requestMatchers("/api/admin/**").hasRole("ADMIN")
                     .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("ADMIN")
                     .requestMatchers(HttpMethod.PUT, "/api/stalls/**").hasRole("ADMIN")

@@ -14,4 +14,5 @@ public class ReservationRequest {
     private String time;
     private Long userId;
     private List<Long> stallId;
+    private Long genreId;
 }

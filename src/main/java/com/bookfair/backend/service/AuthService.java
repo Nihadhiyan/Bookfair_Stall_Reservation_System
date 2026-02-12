@@ -56,9 +56,10 @@ public class AuthService {
     }   
 
     public AuthResponse login(LoginRequest loginRequest) {
-        User user = userRepository.findByUsername(loginRequest.getUsername());
         Authentication authentication = 
             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
+        
+        User user = userRepository.findByUsername(loginRequest.getUsername());
 
         AuthResponse authResponse = new AuthResponse();
 

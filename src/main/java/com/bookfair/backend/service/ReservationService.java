@@ -6,9 +6,12 @@ import com.bookfair.backend.Model.entity.Reservation;
 import com.bookfair.backend.Model.entity.Reservation.ReservationStatus;
 import com.bookfair.backend.dto.request.ReservationRequest;
 import com.bookfair.backend.dto.response.ReservationResponse;
+import com.bookfair.backend.repository.GenreRepository;
 import com.bookfair.backend.repository.ReservationRepository;
 import com.bookfair.backend.repository.StallRepository;
 import com.bookfair.backend.repository.UserRepository;
+
+import org.springframework.transaction.annotation.Transactional;
 
 import org.springframework.stereotype.Service;
 
@@ -25,15 +28,20 @@ public class ReservationService {
     private final ReservationRepository reservationRepository;
     private final UserRepository userRepository;
     private final StallRepository stallRepository;
+    private final QRService qrCodeService;
+    private final EmailService emailService;
+    private final GenreRepository genreRepository;
 
     
 
-    public ReservationService(ReservationRepository reservationRepository, UserRepository userRepository, StallRepository stallRepository) {
+    public ReservationService(ReservationRepository reservationRepository, UserRepository userRepository, StallRepository stallRepository, QRService qrCodeService, EmailService emailService, GenreRepository genreRepository) {
 
         this.reservationRepository = reservationRepository;
         this.userRepository = userRepository;
         this.stallRepository = stallRepository;
-
+        this.qrCodeService = qrCodeService;
+        this.emailService = emailService;
+        this.genreRepository = genreRepository;
     }
 
     
@@ -86,6 +94,7 @@ public class ReservationService {
 
 
 
+    @Transactional
     public ReservationResponse createReservation(ReservationRequest reservationRequest) {
         Reservation reservation = new Reservation();
 
@@ -100,8 +109,23 @@ public class ReservationService {
         reservation.setDate(LocalDate.parse(reservationRequest.getDate()));
         reservation.setStatus(ReservationStatus.PENDING);
         reservation.setTime(reservationRequest.getTime());
+        reservation.setGenre(genreRepository.findById(reservationRequest.getGenreId())
+            .orElseThrow(() -> new RuntimeException("Genre not found"))
+        );
 
-        reservationRepository.save(reservation);
+        Reservation savedReservation = reservationRepository.save(reservation);
+
+        String qrCode = qrCodeService.generateQRCode("RES-" + savedReservation.getId());
+
+        try {
+            emailService.sendEmail(
+            savedReservation.getUser().getEmail(), 
+            "Stall: " + savedReservation.getStalls().toString(), 
+            qrCode); 
+        } catch (Exception e) {
+            System.err.println("Database saved, but email failed: " + e.getMessage());
+        }
+        
 
         ReservationResponse reservationResponse = new ReservationResponse();
 
@@ -148,4 +172,5 @@ public class ReservationService {
     }
 
 }
+
 

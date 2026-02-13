@@ -10,6 +10,7 @@ import java.util.function.Function;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
@@ -23,17 +24,8 @@ import io.jsonwebtoken.security.Keys;
 @Service
 public class JwtService {
 
-    private String secretKey = "";
-
-    public JwtService() {
-        try {
-            KeyGenerator keyGenerator = KeyGenerator.getInstance("HmacSHA256");
-            SecretKey sK = keyGenerator.generateKey();
-            secretKey = Base64.getEncoder().encodeToString(sK.getEncoded());
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        }
-    }
+    @Value("${app.jwtSecret:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}")
+    private String secretKey;
 
     public String generateToken(User user) {
 

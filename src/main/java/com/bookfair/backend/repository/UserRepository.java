@@ -3,16 +3,19 @@ package com.bookfair.backend.repository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import com.bookfair.backend.Model.entity.User;
+import com.bookfair.backend.model.User;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
-public interface UserRepository extends JpaRepository<User, Long> {
+public interface UserRepository extends JpaRepository<User, UUID> {
     
-    Optional<User> findByEmail(String email);
-    
-    boolean existsByEmail(String email);
+    Optional<User> findByEmailAndActiveTrue(String email);
 
-    User findByUsername(String username);
+    Optional<User> findByUsernameAndActiveTrue(String username);
+
+    boolean existsByEmailAndActiveTrue(String email);
+
+    boolean existsByUsernameAndActiveTrue(String username);
 }

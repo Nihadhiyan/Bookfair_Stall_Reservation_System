@@ -1,176 +1,222 @@
 package com.bookfair.backend.service;
 
-
-
-import com.bookfair.backend.dto.request.ReservationRequest;
-import com.bookfair.backend.dto.response.ReservationResponse;
+import com.bookfair.backend.dto.reservation.mapper.ReservationMapper;
+import com.bookfair.backend.dto.reservation.request.CreateReservationRequest;
+import com.bookfair.backend.dto.reservation.response.ReservationResponse;
+import com.bookfair.backend.model.BookFair;
+import com.bookfair.backend.model.BookFairStall;
 import com.bookfair.backend.model.Reservation;
 import com.bookfair.backend.model.Reservation.ReservationStatus;
+import com.bookfair.backend.model.ReservationStall;
+import com.bookfair.backend.model.User;
+import com.bookfair.backend.model.BookFairStall.AvailabilityStatus;
+import com.bookfair.backend.model.Genre;
+import com.bookfair.backend.repository.BookFairRepository;
+import com.bookfair.backend.repository.BookFairStallRepository;
 import com.bookfair.backend.repository.GenreRepository;
 import com.bookfair.backend.repository.ReservationRepository;
-import com.bookfair.backend.repository.StallRepository;
 import com.bookfair.backend.repository.UserRepository;
+
+import lombok.RequiredArgsConstructor;
 
 import org.springframework.transaction.annotation.Transactional;
 
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
+import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
-
-
+import java.util.Map;
+import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class ReservationService {
-
-    
 
     private final ReservationRepository reservationRepository;
     private final UserRepository userRepository;
-    private final StallRepository stallRepository;
+    private final BookFairStallRepository bookFairStallRepository;
+    private final BookFairRepository bookFairRepository;
     private final QRService qrCodeService;
     private final EmailService emailService;
     private final GenreRepository genreRepository;
+    private final PricingEngineService pricingEngineService;
+    private final ReservationMapper reservationMapper;
 
-    
+    @Transactional
+    public ReservationResponse createReservation(CreateReservationRequest createReservationRequest) {
 
-    public ReservationService(ReservationRepository reservationRepository, UserRepository userRepository, StallRepository stallRepository, QRService qrCodeService, EmailService emailService, GenreRepository genreRepository) {
+        User user = userRepository.findByUserIdAndActiveTrue(createReservationRequest.getUserId())
+                .orElseThrow(() -> new IllegalArgumentException("User not found or inactive"));
 
-        this.reservationRepository = reservationRepository;
-        this.userRepository = userRepository;
-        this.stallRepository = stallRepository;
-        this.qrCodeService = qrCodeService;
-        this.emailService = emailService;
-        this.genreRepository = genreRepository;
-    }
+        BookFair bookFair = bookFairRepository.findByIdAndActiveTrue(createReservationRequest.getBookFairId())
+                .orElseThrow(() -> new IllegalArgumentException("Book Fair not found"));
 
-    
+        Genre genre = genreRepository.findByIdAndActiveTrue(createReservationRequest.getGenreId())
+                .orElseThrow(() -> new IllegalArgumentException("Genre not found"));
 
-    public List<ReservationResponse> getAllReservations() {
+        List<BookFairStall> stalls = bookFairStallRepository.findAllById(createReservationRequest.getStallIds());
 
-        return reservationRepository.findAll().stream()
-                .map(reservation -> {
-                    ReservationResponse reservationResponse = new ReservationResponse();
-                    reservationResponse.setId(reservation.getId());
-                    reservationResponse.setDate(reservation.getDate().toString());
-                    reservationResponse.setTime(reservation.getTime());
-                    reservationResponse.setStatus(reservation.getStatus().name());
-                    reservationResponse.setUserId(reservation.getUser().getId().toString());
-                    reservationResponse.setGenreId(reservation.getGenre().getId());
-                    reservationResponse.setStallId(reservation.getStalls()
-                        .stream()
-                        .map(stall -> stall.getId())
-                        .toList()
-                    );
-                    return reservationResponse;
+        for (BookFairStall stall : stalls) {
+            if (!stall.getStatus().name().equals("AVAILABLE")) {
+                throw new IllegalStateException(
+                        "Sorry! This stall is already booked or currently in someone else's cart. Please choose another stall.");
+            }
+        }
+
+        Reservation reservation = new Reservation();
+        reservation.setUser(user);
+        reservation.setBookFair(bookFair);
+        reservation.setGenre(genre);
+
+        reservation.setReservationStartDateTime(
+                createReservationRequest.getReservationStartDateTime() != null
+                        ? createReservationRequest.getReservationStartDateTime()
+                        : bookFair.getStartDateTime());
+
+        reservation.setExpiresAt(
+                createReservationRequest.getExpiresAt() != null ? createReservationRequest.getExpiresAt()
+                        : bookFair.getEndDateTime());
+
+        reservation.setStatus(ReservationStatus.PENDING);
+
+        BigDecimal finalPrice = BigDecimal.ZERO;
+
+        List<ReservationStall> reservationStalls = stalls.stream()
+                .map(s -> {
+
+                    s.setStatus(AvailabilityStatus.BLOCKED);
+
+                    ReservationStall rs = new ReservationStall();
+                    rs.setBookFairStall(s);
+                    rs.setReservation(reservation);
+                    rs.setPriceAtBooking(pricingEngineService.calculateFinalPrice(s));
+
+                    finalPrice.add(rs.getPriceAtBooking());
+
+                    return rs;
                 })
                 .toList();
 
-    }
+        reservation.setTotalPrice(finalPrice);
+        reservation.setReservedStalls(reservationStalls);
 
-
-
-    public ReservationResponse getReservationById(Long id) {
-        Reservation reservation = reservationRepository
-                .findById(id)
-                .orElseThrow(() -> new RuntimeException("Reservation not found"));
-
-        ReservationResponse reservationResponse = new ReservationResponse();
-        
-        reservationResponse.setId(reservation.getId());
-        reservationResponse.setDate(reservation.getDate().toString());
-        reservationResponse.setTime(reservation.getTime());
-        reservationResponse.setStatus(reservation.getStatus().name());
-        reservationResponse.setUserId(reservation.getUser().getId().toString());
-        reservationResponse.setGenreId(reservation.getGenre().getId());
-        reservationResponse.setStallId(reservation.getStalls()
-            .stream()
-            .map(stall -> stall.getId())
-            .toList()
-        );
-        
-        return reservationResponse;
-    }
-
-
-
-    @Transactional
-    public ReservationResponse createReservation(ReservationRequest reservationRequest) {
-        Reservation reservation = new Reservation();
-
-        reservation.setUser(userRepository
-            .findById(reservationRequest.getUserId())
-            .orElseThrow(() -> new RuntimeException("User not found"))
-        );
-        reservation.setStalls(stallRepository
-            .findAllById(reservationRequest.getStallId())
-        );
-
-        reservation.setDate(LocalDate.parse(reservationRequest.getDate()));
-        reservation.setStatus(ReservationStatus.PENDING);
-        reservation.setTime(reservationRequest.getTime());
-        reservation.setGenre(genreRepository.findById(reservationRequest.getGenreId())
-            .orElseThrow(() -> new RuntimeException("Genre not found"))
-        );
-
+        bookFairStallRepository.saveAll(stalls);
         Reservation savedReservation = reservationRepository.save(reservation);
 
-        String qrCode = qrCodeService.generateQRCode("RES-" + savedReservation.getId());
+        Map<String, Object> emailData = new HashMap<>();
+        emailData.put("userName", user.getUsername());
+        emailData.put("eventName", bookFair.getName());
 
-        try {
-            emailService.sendEmail(
-            savedReservation.getUser().getEmail(), 
-            "Stall: " + savedReservation.getStalls().toString(), 
-            qrCode); 
-        } catch (Exception e) {
-            System.err.println("Database saved, but email failed: " + e.getMessage());
+        emailService.sendEmail(
+            user.getEmail(), 
+            "Reservation Request Received", 
+            "pending",
+            emailData, 
+            null
+        );
+
+        return reservationMapper.toReservationResponse(savedReservation);
+
+    }
+
+    @Transactional
+    public void confirmReservation(UUID reservationId) {
+        Reservation reservation = reservationRepository.findByIdAndStatus(reservationId, ReservationStatus.PENDING)
+                .orElseThrow(() -> new IllegalArgumentException("Reservation not found"));
+
+        if (!reservation.getStatus().equals(ReservationStatus.PENDING)) {
+            throw new IllegalStateException("Can only confirm PENDING reservations.");
         }
-        
 
-        ReservationResponse reservationResponse = new ReservationResponse();
+        reservation.setStatus(ReservationStatus.CONFIRMED);
 
-        reservationResponse.setId(reservation.getId());
-        reservationResponse.setDate(reservation.getDate().toString());
-        reservationResponse.setTime(reservation.getTime());
-        reservationResponse.setStatus(reservation.getStatus().name());
-        reservationResponse.setGenreId(reservation.getGenre().getId());
-        
-        return reservationResponse;
+        String qrPayload = "RES-" + reservation.getId();
+        reservation.setQrCodePayload(qrPayload);
+        String qrCodeImage = qrCodeService.generateQRCode(qrPayload);
+
+        for (ReservationStall rs : reservation.getReservedStalls()) {
+            BookFairStall stall = rs.getBookFairStall();
+            stall.setStatus(AvailabilityStatus.BOOKED);
+            bookFairStallRepository.save(stall);
+        }
+
+        reservationRepository.save(reservation);
+
+        Map<String, Object> emailData = new HashMap<>();
+        emailData.put("userName", reservation.getUser().getUsername());
+        emailData.put("eventName", reservation.getBookFair().getName());
+
+        emailService.sendEmail(
+                reservation.getUser().getEmail(),
+                "Reservation Confirmed - Your Ticket",
+                "confirmed",
+                emailData,
+                qrCodeImage
+            );
     }
 
+    @Transactional
+    public void requestCancellation(UUID reservationId) {
+        Reservation reservation = reservationRepository.findById(reservationId)
+                .orElseThrow(() -> new IllegalArgumentException("Reservation not found"));
 
+        if (!reservation.getStatus().equals(ReservationStatus.CONFIRMED)
+                || !reservation.getStatus().equals(ReservationStatus.PENDING)
+            ) {
+            throw new IllegalStateException("Only confirmed or pending reservations can be cancelled for a refund.");
+        }
 
-    public List<ReservationResponse> getReservationsByUser(Long id) {
-        return reservationRepository.findByUser(userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found")))
-            .stream()
-            .map(reservation -> {
-                ReservationResponse reservationResponse = new ReservationResponse();
-                reservationResponse.setId(reservation.getId());
-                reservationResponse.setDate(reservation.getDate().toString());
-                reservationResponse.setTime(reservation.getTime());
-                reservationResponse.setStatus(reservation.getStatus().name());
-                reservationResponse.setUserId(reservation.getUser().getId().toString());
-                reservationResponse.setGenreId(reservation.getGenre().getId());
-                reservationResponse.setStallId(reservation.getStalls()
-                    .stream()
-                    .map(stall -> stall.getId())
-                    .toList()
-                );
-                return reservationResponse;
-            })
-            .toList();
+        reservation.setStatus(ReservationStatus.REFUND_PENDING);
+        reservationRepository.save(reservation);
+
+        Map<String, Object> emailData = new HashMap<>();
+        emailData.put("userName", reservation.getUser().getUsername());
+        emailData.put("eventName", reservation.getBookFair().getName());
+
+        emailService.sendEmail(
+            reservation.getUser().getEmail(), 
+            "Refund Request Received", 
+            "refund_pending",
+            emailData, 
+            null
+        );
     }
 
+    @Transactional
+    public void approveRefund(UUID reservationId) {
+        Reservation reservation = reservationRepository
+                .findByIdAndStatus(reservationId, ReservationStatus.REFUND_PENDING)
+                .orElseThrow(() -> new IllegalArgumentException("Reservation not found"));
 
+        if (!reservation.getStatus().equals(ReservationStatus.REFUND_PENDING)) {
+            throw new IllegalStateException("Reservation is not pending a refund.");
+        }
 
-    public void cancelReservation(Long id) {
-       Reservation reservation = reservationRepository.findById(id)
-               .orElseThrow(() -> new RuntimeException("Reservation not found"));
-       reservation.setStatus(ReservationStatus.CANCELLED);
-       reservationRepository.save(reservation);
+        reservation.setStatus(ReservationStatus.REFUNDED);
+
+        for (ReservationStall rs : reservation.getReservedStalls()) {
+            BookFairStall stall = rs.getBookFairStall();
+            stall.setStatus(AvailabilityStatus.AVAILABLE);
+            bookFairStallRepository.save(stall);
+        }
+
+        reservationRepository.save(reservation);
+
+        // (Assuming we integrated Stripe here to actually return the money)
+
+        Map<String, Object> emailData = new HashMap<>();
+        emailData.put("userName", reservation.getUser().getUsername());
+        emailData.put("eventName", reservation.getBookFair().getName());
+
+        emailService.sendEmail(
+            reservation.getUser().getEmail(), 
+            "Refund Processed Successfully", 
+            "refunded",
+            emailData, 
+            null
+        );
+
     }
 
 }
-
-

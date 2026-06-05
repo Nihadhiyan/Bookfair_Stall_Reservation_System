@@ -10,7 +10,7 @@ import com.bookfair.backend.model.Stall.StallType;
 
 @Service
 public class PricingEngineService {
-    public BigDecimal calculatedFinalPrice(BookFairStall bookFairStall) {
+    public BigDecimal calculateFinalPrice(BookFairStall bookFairStall) {
         
         if(bookFairStall.getManualOverridePrice() != null && 
            bookFairStall.getManualOverridePrice().compareTo(BigDecimal.ZERO) > 0) {

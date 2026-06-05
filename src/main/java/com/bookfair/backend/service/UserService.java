@@ -62,5 +62,12 @@ public class UserService {
         })
         .toList();
     }
+
+    public List<UserResponse> getAllUsers() {
+        return userRepository.findAllByActiveTrue().stream()
+            .map(user -> {
+                return userMapper.toUserResponse(user);
+            }).toList();
+    }
     
 }

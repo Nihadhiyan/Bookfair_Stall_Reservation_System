@@ -27,6 +27,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
 
     Optional<Reservation> findByIdAndStatus(UUID reservationId, Reservation.ReservationStatus status);
 
+    Optional<Reservation> findById(UUID reservationId);
+
     List<Reservation> findByBookFairId(UUID bookFairId);
 
     List<Reservation> findByExpiresAtBeforeAndStatus(LocalDateTime expiresAt, Reservation.ReservationStatus status);

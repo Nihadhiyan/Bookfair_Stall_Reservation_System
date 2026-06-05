@@ -20,7 +20,6 @@ import com.bookfair.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.transaction.annotation.Transactional;
-
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -108,12 +107,11 @@ public class ReservationService {
         emailData.put("eventName", bookFair.getName());
 
         emailService.sendEmail(
-            user.getEmail(), 
-            "Reservation Request Received", 
-            "pending",
-            emailData, 
-            null
-        );
+                user.getEmail(),
+                "Reservation Request Received",
+                "pending",
+                emailData,
+                null);
 
         return reservationMapper.toReservationResponse(savedReservation);
 
@@ -151,8 +149,7 @@ public class ReservationService {
                 "Reservation Confirmed - Your Ticket",
                 "confirmed",
                 emailData,
-                qrCodeImage
-            );
+                qrCodeImage);
     }
 
     @Transactional
@@ -161,8 +158,7 @@ public class ReservationService {
                 .orElseThrow(() -> new IllegalArgumentException("Reservation not found"));
 
         if (!reservation.getStatus().equals(ReservationStatus.CONFIRMED)
-                && !reservation.getStatus().equals(ReservationStatus.PENDING)
-            ) {
+                && !reservation.getStatus().equals(ReservationStatus.PENDING)) {
             throw new IllegalStateException("Only confirmed or pending reservations can be cancelled for a refund.");
         }
 
@@ -174,12 +170,11 @@ public class ReservationService {
         emailData.put("eventName", reservation.getBookFair().getName());
 
         emailService.sendEmail(
-            reservation.getUser().getEmail(), 
-            "Refund Request Received", 
-            "refund_pending",
-            emailData, 
-            null
-        );
+                reservation.getUser().getEmail(),
+                "Refund Request Received",
+                "refund_pending",
+                emailData,
+                null);
     }
 
     @Transactional
@@ -209,13 +204,33 @@ public class ReservationService {
         emailData.put("eventName", reservation.getBookFair().getName());
 
         emailService.sendEmail(
-            reservation.getUser().getEmail(), 
-            "Refund Processed Successfully", 
-            "refunded",
-            emailData, 
-            null
-        );
+                reservation.getUser().getEmail(),
+                "Refund Processed Successfully",
+                "refunded",
+                emailData,
+                null);
 
+    }
+
+    public List<ReservationResponse> getAllReservations() {
+        return reservationRepository.findAll().stream()
+                .map(reservation -> {
+                    return reservationMapper.toReservationResponse(reservation);
+                }).toList();
+    }
+
+    public ReservationResponse getReservationById(UUID id) {
+
+        Reservation reservation = reservationRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Reservation not found"));
+
+        return reservationMapper.toReservationResponse(reservation);
+    }
+
+    public List<ReservationResponse> getReservationsByUser(UUID userId) {
+        return reservationRepository.findByUserId(userId).stream().map(reservation -> {
+            return reservationMapper.toReservationResponse(reservation);
+        }).toList();
     }
 
 }

@@ -5,26 +5,26 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.bookfair.backend.dto.request.ReservationRequest;
-import com.bookfair.backend.dto.response.ReservationResponse;
+import com.bookfair.backend.dto.reservation.request.CreateReservationRequest;
+import com.bookfair.backend.dto.reservation.response.ReservationResponse;
 import com.bookfair.backend.service.ReservationService;
 
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+
 import java.util.List;
+import java.util.UUID;
 
 
 @RestController
-@RequestMapping("/api/reservations")
+@RequiredArgsConstructor
+@RequestMapping("/api/v1/reservations")
 public class ReservationController {
     private final ReservationService reservationService;
-
-    public ReservationController(ReservationService reservationService) {
-        this.reservationService = reservationService;
-    }
     
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
@@ -33,24 +33,36 @@ public class ReservationController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ReservationResponse> getReservationById(@PathVariable Long id) {
+    public ResponseEntity<ReservationResponse> getReservationById(@PathVariable UUID id) {
         return ResponseEntity.ok(reservationService.getReservationById(id));
     }
 
     @PostMapping
-    public ResponseEntity<ReservationResponse> createReservation(@RequestBody ReservationRequest reservationRequest) {
+    public ResponseEntity<ReservationResponse> createReservation(@Valid @RequestBody CreateReservationRequest reservationRequest) {
         return ResponseEntity.ok(reservationService.createReservation(reservationRequest));
     }
 
-    @GetMapping("/publisher/{id}")
-    public ResponseEntity<List<ReservationResponse>> getReservationsByUser(@PathVariable Long id) {
-        return ResponseEntity.ok(reservationService.getReservationsByUser(id));
+    @GetMapping("/publisher/{userId}")
+    public ResponseEntity<List<ReservationResponse>> getReservationsByUser(@PathVariable UUID userId) {
+        return ResponseEntity.ok(reservationService.getReservationsByUser(userId));
     }
 
-    @PutMapping({"/{id}"})
-    public ResponseEntity<List<ReservationResponse>> cancelReservation(@PathVariable Long id) {
-        reservationService.cancelReservation(id);
-        return ResponseEntity.ok(reservationService.getAllReservations());
+    @PostMapping("/{reservationId}/confirm")
+    public ResponseEntity<String> confirmReservation(@PathVariable UUID reservationId) {
+        reservationService.confirmReservation(reservationId);
+        return ResponseEntity.ok("Payment confirmed. Ticket generated and emailed to vendor.");
+    }
+
+    @PostMapping("/{reservationId}/cancel")
+    public ResponseEntity<String> cancelReservation(@PathVariable UUID id) {
+        reservationService.requestCancellation(id);
+        return ResponseEntity.ok("Cancellation requested. Pending admin approval for refund.");
+    }
+
+    @PostMapping("/{reservationId}/refund")
+    public ResponseEntity<String> approveRefund(@PathVariable UUID reservationId) {
+        reservationService.approveRefund(reservationId);
+        return ResponseEntity.ok("Refund processed successfully. Stalls have been released.");
     }
     
 }

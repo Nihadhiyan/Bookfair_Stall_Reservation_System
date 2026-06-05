@@ -1,7 +1,9 @@
 package com.bookfair.backend.dto.auth.mapper;
 
 import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 
+import com.bookfair.backend.dto.auth.request.RegisterRequest;
 import com.bookfair.backend.dto.auth.response.AuthResponse;
 import com.bookfair.backend.dto.auth.response.UserProfileResponse;
 import com.bookfair.backend.dto.config.GlobalMapperConfig;
@@ -12,4 +14,9 @@ public interface AuthMapper {
     AuthResponse toAuthResponse(User user, String accessToken, String refreshToken, Long expiresIn);
 
     UserProfileResponse toUserProfileResponse(User user);
+
+    @Mapping(target = "password", ignore = true) // Ignore the raw password for security
+    @Mapping(target = "active", constant = "true") // Automatically set active to true
+    @Mapping(target = "role", expression = "java(User.Role.valueOf(registerRequest.getRole().toUpperCase()))")
+    User toUserFromRegisterRequest(RegisterRequest registerRequest);
 }

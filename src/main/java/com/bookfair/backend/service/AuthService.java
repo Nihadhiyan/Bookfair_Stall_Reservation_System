@@ -2,16 +2,14 @@ package com.bookfair.backend.service;
 
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.bookfair.backend.dto.auth.mapper.AuthMapper;
+import com.bookfair.backend.dto.auth.request.LoginRequest;
 import com.bookfair.backend.dto.auth.request.RegisterRequest;
 import com.bookfair.backend.dto.auth.response.AuthResponse;
 import com.bookfair.backend.model.User;
-import com.bookfair.backend.model.User.Role;
 import com.bookfair.backend.repository.UserRepository;
 import com.bookfair.backend.security.JwtService;
 
@@ -23,52 +21,51 @@ import lombok.RequiredArgsConstructor;
 public class AuthService {
 
     private final UserRepository userRepository;
-    private final BCryptPasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final AuthMapper authMapper;
     private final JwtService jwtService;
 
     @Transactional
     public AuthResponse register(RegisterRequest registerRequest) {
-        User user = new User();
 
-        user.setUsername(registerRequest.getUsername());
-        user.setEmail(registerRequest.getEmail());
+        if (userRepository.existsByUsernameAndActiveTrue(registerRequest.getUsername())) {
+            throw new IllegalArgumentException("Username is already taken");
+        }
+
+        if (userRepository.existsByEmailAndActiveTrue(registerRequest.getEmail())) {
+            throw new IllegalArgumentException("Email is already registered");
+        }
+
+        User user = authMapper.toUserFromRegisterRequest(registerRequest);
+
         user.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
-        user.setAddress(registerRequest.getAddress());
-        user.setContactNumber(registerRequest.getContactNumber());
-        user.setBusinessName(registerRequest.getBusinessName());
 
-        try{
-            user.setRole(Role.valueOf(registerRequest.getRole().toUpperCase()));
-        }
-        catch(Exception e){
-            user.setRole(Role.VENDOR);
-        }
+        User savedUser = userRepository.save(user);
 
-        userRepository.save(user);
+        String accessToken = jwtService.generateToken(savedUser);
+        String refreshToken = jwtService.generateRefreshToken(savedUser);
 
-        AuthResponse authResponse = new AuthResponse();
-        authResponse.setToken(jwtService.generateToken(user));
+        Long expiresIn = 3600L; // 1 hour in seconds
 
-        return authResponse;
-        
-    }   
+        return authMapper.toAuthResponse(savedUser, accessToken, refreshToken, expiresIn);
+
+    }
 
     public AuthResponse login(LoginRequest loginRequest) {
-        Authentication authentication = 
-            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
-        
-        User user = userRepository.findByUsername(loginRequest.getUsername());
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        loginRequest.getUsername(),
+                        loginRequest.getPassword()));
 
-        AuthResponse authResponse = new AuthResponse();
+        User user = userRepository.findByUsernameAndActiveTrue(loginRequest.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid username or password"));
 
-        if(!authentication.isAuthenticated()) {
-            throw new RuntimeException("Invalid username or password");
-        }
+        String accessToken = jwtService.generateToken(user);
+        String refreshToken = jwtService.generateRefreshToken(user);
 
-        authResponse.setToken(jwtService.generateToken(user));
+        Long expiresIn = 3600L; // 1 hour in seconds
 
-        return authResponse;
+        return authMapper.toAuthResponse(user, accessToken, refreshToken, expiresIn);
     }
 }

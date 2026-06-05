@@ -23,7 +23,7 @@ public class ReservationDetailResponse {
     private SimpleUserDto user;
     private SimpleBookFairDto bookFair;
     private LocalDate date;
-    private LocalDateTime reservationStartTime;
+    private LocalDateTime reservationStartDateTime;
     private LocalDateTime expiresAt;
     private LocalTime time;
     private String status;

@@ -26,7 +26,7 @@ public class CreateReservationRequest {
     private List<UUID> stallIds;
 
     @NotNull(message = "Reservation start time is required")
-    private LocalDateTime reservationStartTime;
+    private LocalDateTime reservationStartDateTime;
 
     @NotNull(message = "Expiration time is required")
     private LocalDateTime expiresAt;

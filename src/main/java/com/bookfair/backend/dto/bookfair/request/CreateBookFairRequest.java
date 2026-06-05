@@ -1,6 +1,6 @@
 package com.bookfair.backend.dto.bookfair.request;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
@@ -21,10 +21,10 @@ public class CreateBookFairRequest {
     private String location;
 
     @NotBlank(message = "Book fair start date is required")
-    private LocalDate startDate;
+    private LocalDateTime startDateTime;
 
     @NotBlank(message = "Book fair end date is required")
-    private LocalDate endDate;
+    private LocalDateTime endDateTime;
 
     @NotBlank(message = "Book fair status is required")
     private String status;

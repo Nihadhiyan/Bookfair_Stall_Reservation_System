@@ -32,7 +32,7 @@ public class UpdateReservationRequest {
     private LocalDate date;
 
     @NotNull(message = "Reservation start time is required")
-    private LocalDateTime reservationStartTime;
+    private LocalDateTime reservationStartDateTime;
 
     @NotNull(message = "Expiration time is required")
     private LocalDateTime expiresAt;

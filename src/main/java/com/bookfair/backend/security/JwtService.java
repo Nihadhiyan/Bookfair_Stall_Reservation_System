@@ -25,6 +25,10 @@ public class JwtService {
     @Value("${app.jwtSecret:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}")
     private String secretKey;
 
+    private static final long ACCESS_TOKEN_EXPIRATION_TIME = 1000 * 60 * 60;
+
+    private static final long REFRESH_TOKEN_EXPIRATION_TIME = 1000 * 60 * 60 * 24 * 7;
+
     public String generateToken(User user) {
 
         Map<String, Object> claims = new HashMap<>();
@@ -36,10 +40,19 @@ public class JwtService {
             .add(claims)
             .subject(user.getUsername())
             .issuedAt(new Date(System.currentTimeMillis()))
-            .expiration(new Date(System.currentTimeMillis() + 1000 * 60  * 60))
+            .expiration(new Date(System.currentTimeMillis() + ACCESS_TOKEN_EXPIRATION_TIME))
             .and()
             .signWith(getKey())
             .compact();
+    }
+
+    public String generateRefreshToken(User user) {
+        return Jwts.builder()
+        .subject(user.getUsername())
+        .issuedAt(new Date(System.currentTimeMillis()))
+        .expiration(new Date(System.currentTimeMillis() + REFRESH_TOKEN_EXPIRATION_TIME))
+        .signWith(getKey())
+        .compact();
     }
 
     private SecretKey getKey() {

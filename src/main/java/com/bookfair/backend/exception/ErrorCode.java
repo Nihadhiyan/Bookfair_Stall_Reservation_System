@@ -6,6 +6,10 @@ public enum ErrorCode {
         USER_LOCKED,
         VENUE_NOT_FOUND,
         STALL_NOT_FOUND,
+        BOOKFAIR_NOT_FOUND,
+        GENRE_NOT_FOUND,
+        HALL_NOT_FOUND,
+        RESERVATION_NOT_FOUND,
 
         DUPLICATE_USERNAME,
         DUPLICATE_EMAIL,
@@ -19,6 +23,9 @@ public enum ErrorCode {
         PAYMENT_DECLINED,
         RESERVATION_FAILED,
         BOOKING_EXPIRED,
+        EMAIL_SEND_FAILED,
+        QR_GENERATION_FAILED,
+        REFUND_FAILED,
 
         FILE_UPLOAD_FAILED,
 

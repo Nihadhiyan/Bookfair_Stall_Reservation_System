@@ -24,7 +24,11 @@ public class GlobalExceptionHandler {
         @ExceptionHandler(BaseException.class)
         public ResponseEntity<ErrorResponse> handleBaseException(BaseException ex) {
 
-                log.warn(ex.getMessage());
+                if(ex.getStatus().is5xxServerError()) {
+                        log.error("Server Error [{}]: {}", ex.getErrorCode(), ex.getMessage(), ex);
+                } else {
+                        log.warn("Business Exception [{}]: {}", ex.getErrorCode(), ex.getMessage());
+                }
 
                 return ResponseEntity
                         .status(ex.getStatus())
@@ -34,13 +38,13 @@ public class GlobalExceptionHandler {
         @ExceptionHandler(MethodArgumentNotValidException.class)
         public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
 
-                log.warn(ex.getMessage());
-
                 List<String> errors = ex.getBindingResult()
                                 .getFieldErrors()
                                 .stream()
                                 .map(error -> error.getField() + ": " + error.getDefaultMessage())
                                 .toList();
+
+                log.warn("Validation failed: {}", errors);
 
                 return ResponseEntity.badRequest()
                                 .body(ErrorResponse.build(HttpStatus.BAD_REQUEST, "Validation failed", errors, ErrorCode.VALIDATION_ERROR));
@@ -53,6 +57,8 @@ public class GlobalExceptionHandler {
                                 .stream()
                                 .map(ConstraintViolation::getMessage)
                                 .toList();
+
+                log.warn("Constraint validation failed: {}", errors);
 
                 return ResponseEntity.badRequest()
                                 .body(ErrorResponse.build(HttpStatus.BAD_REQUEST, "Validation failed", errors, ErrorCode.VALIDATION_ERROR));
@@ -70,7 +76,7 @@ public class GlobalExceptionHandler {
         @ExceptionHandler(AccessDeniedException.class)
         public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
 
-                log.warn(ex.getMessage());
+                log.warn("Access denied: {}", ex.getMessage());
 
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                                 .body(ErrorResponse.build(HttpStatus.FORBIDDEN, "Access denied", null, ErrorCode.FORBIDDEN));
@@ -79,7 +85,7 @@ public class GlobalExceptionHandler {
         @ExceptionHandler(DataIntegrityViolationException.class)
         public ResponseEntity<ErrorResponse> handleDataIntegrity(DataIntegrityViolationException ex) {
 
-                log.error(ex.getMessage(), ex);
+                log.error("Database constraint violation: {}", ex.getMessage(), ex);
 
                 return ResponseEntity.status(HttpStatus.CONFLICT)
                                 .body(ErrorResponse.build(HttpStatus.CONFLICT, "Database constraint violation", null, ErrorCode.DATABASE_ERROR));
@@ -88,7 +94,7 @@ public class GlobalExceptionHandler {
         @ExceptionHandler(Exception.class)
         public ResponseEntity<ErrorResponse> handleUnexpected(Exception ex) {
 
-                log.error("Unexpected error", ex);
+                log.error("CRITICAL: An unexpected error occurred: {}", ex.getMessage(), ex);
 
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                                 .body(ErrorResponse.build(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", null, ErrorCode.INTERNAL_SERVER_ERROR));

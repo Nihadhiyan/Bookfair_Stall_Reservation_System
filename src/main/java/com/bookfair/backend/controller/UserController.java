@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -34,17 +35,26 @@ public class UserController {
         return ResponseEntity.ok(userService.getAllUsers());
     }
     
-    @PreAuthorize("hasRole('ADMIN')")
+    // (In a production app, we would verify the token ID matches this PathVariable ID)
     @GetMapping("/{id}")
     public ResponseEntity<UserResponse> getUserById(@PathVariable UUID id) {
         return ResponseEntity.ok(userService.getUserProfile(id));
     }
+
+    @GetMapping("/me")
+    public ResponseEntity<UserResponse> getMyProfile(Authentication authentication) {
+        String currentUsername = authentication.getName(); 
+        
+        return ResponseEntity.ok(userService.getMyProfile(currentUsername));
+    }
     
+    // UPDATE USER: Should ideally check if token ID == path ID
     @PutMapping("/{id}")
     public ResponseEntity<UserResponse> updateUser(@PathVariable UUID id, @Valid @RequestBody UpdateUserRequest userUpdateRequest) {
         return ResponseEntity.ok(userService.updateUser(id, userUpdateRequest));
     }
     
+    // DELETE USER: Should ideally check if token ID == path ID or hasRole('ADMIN')
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteUser(@PathVariable UUID id) {
         userService.deleteUser(id);

@@ -39,6 +39,16 @@ public class UserService {
         return userMapper.toUserResponse(user);
     }
 
+    public UserResponse getMyProfile(String username) {
+        User user = userRepository.findByUsernameAndActiveTrue(username) 
+            .orElseThrow(() -> new ResourceNotFoundException(
+                "User not found", 
+                ErrorCode.USER_NOT_FOUND
+            ));
+
+        return userMapper.toUserResponse(user);
+    }
+
     @Transactional
     public UserResponse updateUser(UUID userId, UpdateUserRequest userUpdateRequest) {
         User user = userRepository.findByIdAndActiveTrue(userId)

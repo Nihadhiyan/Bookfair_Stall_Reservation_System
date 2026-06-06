@@ -26,14 +26,14 @@ public class UserService {
     private final ReservationMapper reservationMapper;
 
     public UserResponse getUserProfile(UUID userId) {
-        User user =  userRepository.findByUserIdAndActiveTrue(userId)
+        User user =  userRepository.findByIdAndActiveTrue(userId)
             .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         return userMapper.toUserResponse(user);
     }
 
     public UserResponse updateUser(UUID userId, UpdateUserRequest userUpdateRequest) {
-        User user = userRepository.findByUserIdAndActiveTrue(userId)
+        User user = userRepository.findByIdAndActiveTrue(userId)
             .orElseThrow(() -> new IllegalArgumentException("User not found"));
         
         userMapper.updateUserFromRequest(userUpdateRequest, user);
@@ -44,7 +44,7 @@ public class UserService {
     }
 
     public void deleteUser(UUID userId) {
-       User user = userRepository.findByUserIdAndActiveTrue(userId)
+       User user = userRepository.findByIdAndActiveTrue(userId)
             .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         user.setActive(false);
@@ -53,7 +53,7 @@ public class UserService {
     }
 
     public List<ReservationResponse> getUserReservations(UUID userId) {
-        User user = userRepository.findByUserIdAndActiveTrue(userId)
+        User user = userRepository.findByIdAndActiveTrue(userId)
             .orElseThrow(() -> new IllegalArgumentException("User not found"));
         
 

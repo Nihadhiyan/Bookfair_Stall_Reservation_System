@@ -1,6 +1,6 @@
 package com.bookfair.backend.repository;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -18,13 +18,13 @@ public interface BookFairRepository extends JpaRepository<BookFair, UUID> {
 
     Optional<BookFair> findByIdAndActiveTrue(UUID id);
 
-    List<BookFair> findByStartDateBeforeAndEndDateAfter(
-        LocalDate currentDate1,
-        LocalDate currentDate2
+    List<BookFair> findByStartDateTimeBeforeAndEndDateTimeAfter(
+        LocalDateTime currentDate1,
+        LocalDateTime currentDate2
     );
 
-    List<BookFair> findByStartDateBeforeAndEndDateAfterAndActiveTrue(
-        LocalDate currentDate1,
-        LocalDate currentDate2
+    List<BookFair> findByStartDateTimeBeforeAndEndDateTimeAfterAndActiveTrue(
+        LocalDateTime currentDate1,
+        LocalDateTime currentDate2
     );
 }

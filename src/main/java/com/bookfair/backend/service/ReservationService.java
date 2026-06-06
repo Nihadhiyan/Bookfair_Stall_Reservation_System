@@ -46,7 +46,7 @@ public class ReservationService {
     @Transactional
     public ReservationResponse createReservation(CreateReservationRequest createReservationRequest) {
 
-        User user = userRepository.findByUserIdAndActiveTrue(createReservationRequest.getUserId())
+        User user = userRepository.findByIdAndActiveTrue(createReservationRequest.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("User not found or inactive"));
 
         BookFair bookFair = bookFairRepository.findByIdAndActiveTrue(createReservationRequest.getBookFairId())

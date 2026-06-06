@@ -20,7 +20,7 @@ public interface BookFairStallRepository extends JpaRepository<BookFairStall, UU
 
     List<BookFairStall> findByBookFair(BookFair bookFair);
 
-    @Query("SELECT bfs FROM BookFairStall bfs JOIN FETCH bfs.stall WHERE bfs.bookfair.id = :bookFairId")
+    @Query("SELECT bfs FROM BookFairStall bfs JOIN FETCH bfs.stall WHERE bfs.bookFair.id = :bookFairId")
     List<BookFairStall> findAllByBookFairIdWithStallData(@Param("bookFairId") UUID bookFairId);
 
     List<BookFairStall> findByStatus(AvailabilityStatus status);

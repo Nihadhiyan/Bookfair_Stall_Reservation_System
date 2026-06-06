@@ -64,7 +64,7 @@ public class StallService {
     @Transactional
     public void deactivateStall(List<UUID> id) {
 
-        List<Stall> stalls = stallRepository.findAllByIdAndActiveTrue(id);
+        List<Stall> stalls = stallRepository.findAllByIdInAndActiveTrue(id);
 
         for(Stall stall : stalls) {
             stall.setActive(false);

@@ -17,5 +17,5 @@ public interface HallRepository extends JpaRepository<Hall, UUID> {
 
     List<Hall> findByActiveTrue();
 
-    long countByHallId(UUID hallId);
+    long countById(UUID Id);
 }

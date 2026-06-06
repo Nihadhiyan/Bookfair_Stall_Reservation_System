@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/genres")
+@RequestMapping("/api/v1/genres")
 public class GenreController {
     private final GenreService genreService;
 

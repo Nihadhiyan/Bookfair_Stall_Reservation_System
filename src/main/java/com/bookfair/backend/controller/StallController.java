@@ -22,7 +22,7 @@ import lombok.RequiredArgsConstructor;
 
 @RestController 
 @RequiredArgsConstructor
-@RequestMapping("/api/stalls")
+@RequestMapping("/api/v1/stalls")
 public class StallController {
     private final StallService stallService;
     

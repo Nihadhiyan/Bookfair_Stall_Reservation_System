@@ -18,12 +18,7 @@ public interface StallRepository extends JpaRepository<Stall, UUID> {
 
     List<Stall> findAllByActiveTrue();
 
-    List<Stall> findAllByIdAndActiveTrue(List<UUID> stallIds);
+    List<Stall> findAllByIdInAndActiveTrue(List<UUID> stallIds);
         
     Optional<Stall> findByIdAndActiveTrue(UUID id);
-
-    boolean existsByBookFairIdAndStallId(
-        UUID bookFairId,
-        UUID stallId
-    );
 }

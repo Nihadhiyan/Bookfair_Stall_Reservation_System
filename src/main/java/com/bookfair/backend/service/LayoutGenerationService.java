@@ -6,6 +6,8 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
+import com.bookfair.backend.exception.ErrorCode;
+import com.bookfair.backend.exception.ResourceNotFoundException;
 import com.bookfair.backend.model.Hall;
 import com.bookfair.backend.model.LayoutPosition;
 import com.bookfair.backend.model.Stall;
@@ -32,7 +34,7 @@ public class LayoutGenerationService {
         int startY
     ) {
         Hall hall = hallRepository.findById(hallId)
-                .orElseThrow(() -> new IllegalArgumentException("Hall not found with ID: " + hallId));
+                .orElseThrow(() -> new ResourceNotFoundException("Hall not found with ID: " + hallId, ErrorCode.HALL_NOT_FOUND));
 
         List<Stall> generatedStalls = new ArrayList<>();
 

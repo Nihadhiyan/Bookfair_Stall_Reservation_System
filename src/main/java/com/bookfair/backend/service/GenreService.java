@@ -9,6 +9,8 @@ import com.bookfair.backend.dto.genre.mapper.GenreMapper;
 import com.bookfair.backend.dto.genre.request.CreateGenreRequest;
 import com.bookfair.backend.dto.genre.request.UpdateGenreRequest;
 import com.bookfair.backend.dto.genre.response.GenreResponse;
+import com.bookfair.backend.exception.ErrorCode;
+import com.bookfair.backend.exception.ResourceNotFoundException;
 import com.bookfair.backend.model.Genre;
 import com.bookfair.backend.repository.GenreRepository;
 
@@ -31,7 +33,7 @@ public class GenreService {
 
     public GenreResponse getGenreById(UUID genreId) {
         Genre genre =  genreRepository.findByIdAndActiveTrue(genreId)
-            .orElseThrow(() -> new IllegalArgumentException("Genre not found"));
+            .orElseThrow(() -> new ResourceNotFoundException("Genre not found", ErrorCode.GENRE_NOT_FOUND));
         
         return genreMapper.toGenreResponse(genre);
     }
@@ -45,7 +47,7 @@ public class GenreService {
 
     public GenreResponse updateGenre(UUID genreId, UpdateGenreRequest genreRequest) {
         Genre genre = genreRepository.findByIdAndActiveTrue(genreId)
-            .orElseThrow(() -> new IllegalArgumentException("Genre not found"));
+            .orElseThrow(() -> new ResourceNotFoundException("Genre not found", ErrorCode.GENRE_NOT_FOUND));
         
         genreMapper.updateGenreFromRequest(genreRequest, genre);
 
@@ -56,12 +58,11 @@ public class GenreService {
 
     public void deleteGenre(UUID genreId) {
         Genre genre = genreRepository.findByIdAndActiveTrue(genreId)
-            .orElseThrow(() -> new IllegalArgumentException("Genre not found"));
+            .orElseThrow(() -> new ResourceNotFoundException("Genre not found", ErrorCode.GENRE_NOT_FOUND));
 
         genre.setActive(false);
 
         genreRepository.save(genre);
     }
 
-    
 }

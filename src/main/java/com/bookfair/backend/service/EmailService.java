@@ -6,6 +6,7 @@ import java.util.Map;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
@@ -22,6 +23,7 @@ public class EmailService {
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
 
+    @Async
     public void sendEmail(String to, String subject, String templateName, Map<String, Object> variables, String qrBase64) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
@@ -46,9 +48,11 @@ public class EmailService {
             }
 
             mailSender.send(message);
+            log.info("Email successfully sent to {}", to);
 
         } catch (Exception e) {
-            log.error("CRITICAL: Failed to send email to " + to + ". Reason: " + e.getMessage());
+
+            log.error("CRITICAL: Failed to send email to {}. Reason: {}", to, e.getMessage(), e);
         }
     }
 }

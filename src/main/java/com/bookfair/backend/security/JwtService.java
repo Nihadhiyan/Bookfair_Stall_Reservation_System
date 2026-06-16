@@ -29,6 +29,8 @@ public class JwtService {
 
     private static final long REFRESH_TOKEN_EXPIRATION_TIME = 1000 * 60 * 60 * 24 * 7;
 
+    private static final long PASSWORD_RESET_AND_VERIFICATION_TOKEN_EXPIRATION_TIME = 1000 * 60 * 15;
+
     public String generateToken(User user) {
 
         Map<String, Object> claims = new HashMap<>();
@@ -55,6 +57,26 @@ public class JwtService {
         .compact();
     }
 
+    public String generatePasswordResetToken(User user) {
+        return Jwts.builder()
+            .claim("purpose", "RESET_PASSWORD")
+            .subject(user.getUsername())
+            .issuedAt(new Date(System.currentTimeMillis()))
+            .expiration(new Date(System.currentTimeMillis() + PASSWORD_RESET_AND_VERIFICATION_TOKEN_EXPIRATION_TIME))
+            .signWith(getKey())
+            .compact();
+    }
+
+    public String generateVerificationToken(User user) {
+        return Jwts.builder()
+            .claim("purpose", "VERIFY_EMAIL")
+            .subject(user.getUsername())
+            .issuedAt(new Date(System.currentTimeMillis()))
+            .expiration(new Date(System.currentTimeMillis() + PASSWORD_RESET_AND_VERIFICATION_TOKEN_EXPIRATION_TIME))
+            .signWith(getKey())
+            .compact();
+    }
+
     private SecretKey getKey() {
         byte[] keyBytes = Decoders.BASE64.decode(secretKey);
         return Keys.hmacShaKeyFor(keyBytes);
@@ -66,6 +88,10 @@ public class JwtService {
 
     public String extractRoles(String token) {
         return extractClaim(token, claims -> claims.get("roles", String.class));
+    }
+
+    public String extractPurpose(String token) {
+        return extractClaim(token, claims -> claims.get("purpose", String.class));
     }
 
     private <T> T extractClaim(String token, Function<Claims, T> claimResolver) {
@@ -94,5 +120,9 @@ public class JwtService {
 
     private Date extractExpiration(String token) {
         return extractClaim(token, Claims::getExpiration);
+    }
+
+    public long getAccessTokenExpirationTime() {
+        return ACCESS_TOKEN_EXPIRATION_TIME;
     }
 }

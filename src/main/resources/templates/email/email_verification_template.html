@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Verify Your Email</title>
+</head>
+<body style="font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 40px 0;">
+    <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        
+        <div style="background-color: #1a1a1a; padding: 30px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Larmora Book Fair</h1>
+        </div>
+        
+        <div style="padding: 40px 30px;">
+            <h2 style="color: #333333; margin-top: 0;">Welcome, <span th:text="${userName}">User</span>!</h2>
+            <p style="color: #555555; line-height: 1.6; font-size: 16px;">
+                Thank you for registering with the Larmora Book Fair Reservation System. To activate your account and start booking stalls, please verify your email address by clicking the button below.
+            </p>
+            
+            <div style="text-align: center; margin: 40px 0;">
+                <a th:href="${verificationLink}" style="background-color: #0056b3; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 4px; font-weight: bold; font-size: 16px; display: inline-block;">Verify Email Address</a>
+            </div>
+            
+            <p style="color: #777777; font-size: 14px; line-height: 1.5;">
+                This link will expire in 24 hours. If you did not create an account using this email address, please ignore this message.
+            </p>
+        </div>
+        
+        <div style="background-color: #f9f9f9; padding: 20px; text-align: center; border-top: 1px solid #eeeeee;">
+            <p style="color: #999999; font-size: 12px; margin: 0;">
+                &copy; 2026 Larmora Events. All rights reserved.<br>
+                Colombo, Western Province, Sri Lanka
+            </p>
+        </div>
+    </div>
+</body>
+</html>

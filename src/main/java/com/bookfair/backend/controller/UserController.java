@@ -35,7 +35,7 @@ public class UserController {
         return ResponseEntity.ok(userService.getAllUsers());
     }
     
-    // (In a production app, we would verify the token ID matches this PathVariable ID)
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{id}")
     public ResponseEntity<UserResponse> getUserById(@PathVariable UUID id) {
         return ResponseEntity.ok(userService.getUserProfile(id));

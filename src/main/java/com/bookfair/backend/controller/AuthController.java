@@ -12,7 +12,9 @@ import com.bookfair.backend.dto.auth.request.LoginRequest;
 import com.bookfair.backend.dto.auth.request.RefreshTokenRequest;
 import com.bookfair.backend.dto.auth.request.RegisterRequest;
 import com.bookfair.backend.dto.auth.request.ResetPasswordRequest;
+import com.bookfair.backend.dto.auth.request.VerifyEmailRequest;
 import com.bookfair.backend.dto.auth.response.AuthResponse;
+import com.bookfair.backend.dto.user.request.ChangePasswordRequest;
 import com.bookfair.backend.service.AuthService;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -42,6 +44,7 @@ public class AuthController {
 
     @PostMapping("/logout") 
     public ResponseEntity<String> logout(HttpServletRequest request) {
+        
         authService.logout(request.getHeader("Authorization"));
         return ResponseEntity.ok("Successfully logged out");
 
@@ -64,9 +67,15 @@ public class AuthController {
         return ResponseEntity.ok("Password has been successfully reset.");
     }
 
+    @PostMapping("/change-password")
+    public ResponseEntity<String> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+        authService.changePassword(request);
+        return ResponseEntity.ok("Password successfully updated.");
+    }
+
     @PostMapping("/verify-email")
-    public ResponseEntity<String> verifyEmail(@Valid @RequestBody String verificationToken) {
-        authService.verifyEmail(verificationToken);
+    public ResponseEntity<String> verifyEmail(@Valid @RequestBody VerifyEmailRequest verifyEmailRequest) {
+        authService.verifyEmail(verifyEmailRequest);
         return ResponseEntity.ok("Email successfully verified. You may now log in.");
     }
 

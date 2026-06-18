@@ -1,5 +1,7 @@
 package com.bookfair.backend.security;
 
+import java.util.UUID;
+
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.authentication.DisabledException;
@@ -32,6 +34,20 @@ public class CustomUserDetailsService implements UserDetailsService {
 
         return new CustomUserPrincipal(user);
     }
+
+    public UserDetails loadUserById(UUID id) {
+        User user = userRepository
+        .findById(id)
+        .orElseThrow(() -> new UsernameNotFoundException("User not found with userId: " + id));
+
+        if (!Boolean.TRUE.equals(user.getActive())) {
+            throw new DisabledException("User account is deactivated");
+        }
+
+        return new CustomUserPrincipal(user);
+    }
+
+
 
     @CacheEvict(value = "userDetails", key = "#username")
     public void evictUserDetails(String username) {

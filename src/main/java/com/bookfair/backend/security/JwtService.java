@@ -3,6 +3,7 @@ package com.bookfair.backend.security;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 
 
@@ -31,7 +32,7 @@ public class JwtService {
 
     private static final long PASSWORD_RESET_AND_VERIFICATION_TOKEN_EXPIRATION_TIME = 1000 * 60 * 15;
 
-    public String generateToken(User user) {
+    public String generateAccessToken(User user) {
 
         Map<String, Object> claims = new HashMap<>();
 
@@ -40,7 +41,7 @@ public class JwtService {
         return Jwts.builder()
             .claims()
             .add(claims)
-            .subject(user.getUsername())
+            .subject(user.getId().toString())
             .issuedAt(new Date(System.currentTimeMillis()))
             .expiration(new Date(System.currentTimeMillis() + ACCESS_TOKEN_EXPIRATION_TIME))
             .and()
@@ -50,7 +51,7 @@ public class JwtService {
 
     public String generateRefreshToken(User user) {
         return Jwts.builder()
-        .subject(user.getUsername())
+        .subject(user.getId().toString())
         .issuedAt(new Date(System.currentTimeMillis()))
         .expiration(new Date(System.currentTimeMillis() + REFRESH_TOKEN_EXPIRATION_TIME))
         .signWith(getKey())
@@ -60,7 +61,7 @@ public class JwtService {
     public String generatePasswordResetToken(User user) {
         return Jwts.builder()
             .claim("purpose", "RESET_PASSWORD")
-            .subject(user.getUsername())
+            .subject(user.getId().toString())
             .issuedAt(new Date(System.currentTimeMillis()))
             .expiration(new Date(System.currentTimeMillis() + PASSWORD_RESET_AND_VERIFICATION_TOKEN_EXPIRATION_TIME))
             .signWith(getKey())
@@ -70,7 +71,7 @@ public class JwtService {
     public String generateVerificationToken(User user) {
         return Jwts.builder()
             .claim("purpose", "VERIFY_EMAIL")
-            .subject(user.getUsername())
+            .subject(user.getId().toString())
             .issuedAt(new Date(System.currentTimeMillis()))
             .expiration(new Date(System.currentTimeMillis() + PASSWORD_RESET_AND_VERIFICATION_TOKEN_EXPIRATION_TIME))
             .signWith(getKey())
@@ -82,8 +83,8 @@ public class JwtService {
         return Keys.hmacShaKeyFor(keyBytes);
     } 
 
-    public String extractUsername(String token) {
-        return extractClaim(token, Claims::getSubject);
+    public UUID extractUserId(String token) {
+        return UUID.fromString(extractClaim(token, Claims::getSubject));
     }
 
     public String extractRoles(String token) {
@@ -109,8 +110,13 @@ public class JwtService {
     }
 
     public boolean validateToken(String token, UserDetails userDetails) {
-        final String userName = extractUsername(token);
-        return (userName.equals(userDetails.getUsername()) && !isTokenExpired(token));
+        final UUID userId = extractUserId(token);
+        
+        if (userDetails instanceof CustomUserPrincipal principal) {
+            return (userId.equals(principal.getId()) && !isTokenExpired(token));
+        }
+
+        return false;
     }
 
     private boolean isTokenExpired(String token) {

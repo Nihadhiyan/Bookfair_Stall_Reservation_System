@@ -1,6 +1,7 @@
 package com.bookfair.backend.config.filter;
 
 import java.io.IOException;
+import java.util.UUID;
 
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -35,23 +36,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         final String authHeader = request.getHeader("Authorization");
         String token = null;
-        String username = null;
+        UUID userId = null;
         String roles = null;
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             token = authHeader.substring(7);
             try {
-                username = jwtService.extractUsername(token);
+                userId = jwtService.extractUserId(token);
                 roles = jwtService.extractRoles(token);
             } catch (Exception e) {
                 log.error("JWT Token validation failed: {}", e.getMessage());
             }
         }
 
-        if (username != null && roles != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+        if (userId != null && roles != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
             try {
-                UserDetails userDetails = customUserDetailsService.loadUserByUsername(username);
+                UserDetails userDetails = customUserDetailsService.loadUserById(userId);
 
                 if (jwtService.validateToken(token, userDetails)) {
                     UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(

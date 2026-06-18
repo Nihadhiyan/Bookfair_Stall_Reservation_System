@@ -2,6 +2,7 @@ package com.bookfair.backend.service;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -58,7 +59,7 @@ public class AuthService {
 
         User savedUser = userRepository.save(user);
 
-        String accessToken = jwtService.generateToken(savedUser);
+        String accessToken = jwtService.generateAccessToken(savedUser);
         String refreshToken = jwtService.generateRefreshToken(savedUser);
 
         Long expiresIn = jwtService.getAccessTokenExpirationTime() / 1000; // 1 hour in seconds
@@ -76,7 +77,7 @@ public class AuthService {
         User user = userRepository.findByUsernameAndActiveTrue(loginRequest.getUsername())
                 .orElseThrow(() -> new ResourceNotFoundException("Invalid username or password", ErrorCode.USER_NOT_FOUND));
 
-        String accessToken = jwtService.generateToken(user);
+        String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
 
         Long expiresIn = jwtService.getAccessTokenExpirationTime() / 1000; // 1 hour in seconds
@@ -85,15 +86,15 @@ public class AuthService {
     }
 
     public AuthResponse refreshToken (RefreshTokenRequest refreshTokenRequest) {
-        String userName = jwtService.extractUsername(refreshTokenRequest.getRefreshToken());
+        UUID userId = jwtService.extractUserId(refreshTokenRequest.getRefreshToken());
 
-        UserDetails userDetails = userDetailsService.loadUserByUsername(userName);
+        UserDetails userDetails = userDetailsService.loadUserById(userId);
 
-        if (userName != null && jwtService.validateToken(userName, userDetails)) {
-            User user = userRepository.findByUsernameAndActiveTrue(userName)
+        if (userId != null && jwtService.validateToken(refreshTokenRequest.getRefreshToken(), userDetails)) {
+            User user = userRepository.findByIdAndActiveTrue(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.USER_NOT_FOUND));
 
-            String newAccessToken = jwtService.generateToken(user);
+            String newAccessToken = jwtService.generateAccessToken(user);
             String newRefreshToken = jwtService.generateRefreshToken(user);
 
             Long expiresIn = jwtService.getAccessTokenExpirationTime() / 1000;
@@ -133,11 +134,11 @@ public class AuthService {
 
     @Transactional
     public void resetPassword(ResetPasswordRequest request) {
-        String username = jwtService.extractUsername(request.getResetToken());
+        UUID userId = jwtService.extractUserId(request.getResetToken());
 
-        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+        UserDetails userDetails = userDetailsService.loadUserById(userId);
 
-        if (username == null || !jwtService.validateToken(request.getResetToken(), userDetails)) {
+        if (userId == null || !jwtService.validateToken(request.getResetToken(), userDetails)) {
             throw new BusinessException("Invalid or expired reset token.", ErrorCode.UNAUTHORIZED);
         }
 
@@ -147,7 +148,7 @@ public class AuthService {
             throw new BusinessException("Invalid token.", ErrorCode.UNAUTHORIZED);
         }
 
-        User user = userRepository.findByUsernameAndActiveTrue(username)
+        User user = userRepository.findByIdAndActiveTrue(userId)
             .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.USER_NOT_FOUND));
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
@@ -167,11 +168,11 @@ public class AuthService {
 
     @Transactional
     public void verifyEmail(String verificationToken) {
-        String username = jwtService.extractUsername(verificationToken);
+        UUID userId = jwtService.extractUserId(verificationToken);
 
-        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+        UserDetails userDetails = userDetailsService.loadUserById(userId);
 
-        if (username == null || !jwtService.validateToken(verificationToken, userDetails)) {
+        if (userId == null || !jwtService.validateToken(verificationToken, userDetails)) {
             throw new BusinessException("Invalid or expired verification token.", ErrorCode.UNAUTHORIZED);
         }
 
@@ -181,7 +182,7 @@ public class AuthService {
             throw new BusinessException("Invalid token.", ErrorCode.UNAUTHORIZED);
         }
 
-        User user = userRepository.findByUsername(username)
+        User user = userRepository.findByIdAndActiveTrue(userId)
             .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.USER_NOT_FOUND));
 
         user.setEmailVerified(true);

@@ -31,5 +31,6 @@ public enum ErrorCode {
 
         VALIDATION_ERROR,
         DATABASE_ERROR,
-        INTERNAL_SERVER_ERROR
+        INTERNAL_SERVER_ERROR, 
+        BUSINESS_RULE_VIOLATION
 }

@@ -15,6 +15,7 @@ import com.bookfair.backend.dto.auth.request.ResetPasswordRequest;
 import com.bookfair.backend.dto.auth.response.AuthResponse;
 import com.bookfair.backend.service.AuthService;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -40,8 +41,8 @@ public class AuthController {
     }
 
     @PostMapping("/logout") 
-    public ResponseEntity<String> logout() {
-        authService.logout();
+    public ResponseEntity<String> logout(HttpServletRequest request) {
+        authService.logout(request.getHeader("Authorization"));
         return ResponseEntity.ok("Successfully logged out");
 
     }

@@ -3,6 +3,7 @@ package com.bookfair.backend.config.filter;
 import java.io.IOException;
 import java.util.UUID;
 
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -20,6 +21,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.AllArgsConstructor;
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
 @Component
@@ -29,9 +31,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final CustomUserDetailsService customUserDetailsService;
+    private final StringRedisTemplate redisTemplate;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+    protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain)
             throws ServletException, IOException {
 
         final String authHeader = request.getHeader("Authorization");
@@ -39,14 +42,31 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         UUID userId = null;
         String roles = null;
 
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            token = authHeader.substring(7);
-            try {
-                userId = jwtService.extractUserId(token);
-                roles = jwtService.extractRoles(token);
-            } catch (Exception e) {
-                log.error("JWT Token validation failed: {}", e.getMessage());
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        token = authHeader.substring(7);
+        try {
+            Boolean isBlacklisted = redisTemplate.hasKey("blacklist:" + token);
+            if (Boolean.TRUE.equals(isBlacklisted)) {
+                log.warn("Rejected request: Attempted access using a blacklisted token.");
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\": \"Token has been revoked\"}");
+                return;
             }
+        } catch (Exception e) {
+            log.error("Redis blacklist lookup failed: {}", e.getMessage());
+        }
+
+
+        try {
+            userId = jwtService.extractUserId(token);
+            roles = jwtService.extractRoles(token);
+        } catch (Exception e) {
+            log.error("JWT Token extraction failed: {}", e.getMessage());
         }
 
         if (userId != null && roles != null && SecurityContextHolder.getContext().getAuthentication() == null) {

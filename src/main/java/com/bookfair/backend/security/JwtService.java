@@ -119,6 +119,14 @@ public class JwtService {
         return false;
     }
 
+    public long getRemainingExpirationTime(String token) {
+
+        Date expiration = extractExpiration(token);
+        long remaining = expiration.getTime() - System.currentTimeMillis();
+
+        return remaining > 0 ? remaining : 0;
+    }
+
     private boolean isTokenExpired(String token) {
         
         return extractExpiration(token).before(new Date());

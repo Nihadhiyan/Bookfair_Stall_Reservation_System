@@ -3,9 +3,13 @@ package com.bookfair.backend.service;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -16,6 +20,7 @@ import com.bookfair.backend.dto.auth.request.RefreshTokenRequest;
 import com.bookfair.backend.dto.auth.request.RegisterRequest;
 import com.bookfair.backend.dto.auth.request.ResetPasswordRequest;
 import com.bookfair.backend.dto.auth.response.AuthResponse;
+import com.bookfair.backend.dto.user.request.ChangePasswordRequest;
 import com.bookfair.backend.exception.BusinessException;
 import com.bookfair.backend.exception.DuplicateResourceException;
 import com.bookfair.backend.exception.ErrorCode;
@@ -23,6 +28,7 @@ import com.bookfair.backend.exception.ResourceNotFoundException;
 import com.bookfair.backend.model.User;
 import com.bookfair.backend.repository.UserRepository;
 import com.bookfair.backend.security.CustomUserDetailsService;
+import com.bookfair.backend.security.CustomUserPrincipal;
 import com.bookfair.backend.security.JwtService;
 
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +47,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
     private final EmailService emailService;
+    private final StringRedisTemplate redisTemplate;
 
     @Transactional
     public AuthResponse register(RegisterRequest registerRequest) {
@@ -59,6 +66,8 @@ public class AuthService {
 
         User savedUser = userRepository.save(user);
 
+        userDetailsService.evictUserDetails(savedUser);
+
         String accessToken = jwtService.generateAccessToken(savedUser);
         String refreshToken = jwtService.generateRefreshToken(savedUser);
 
@@ -68,6 +77,7 @@ public class AuthService {
 
     }
 
+    @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest loginRequest) {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
@@ -85,6 +95,7 @@ public class AuthService {
         return authMapper.toAuthResponse(user, accessToken, refreshToken, expiresIn);
     }
 
+    @Transactional(readOnly = true)
     public AuthResponse refreshToken (RefreshTokenRequest refreshTokenRequest) {
         UUID userId = jwtService.extractUserId(refreshTokenRequest.getRefreshToken());
 
@@ -106,9 +117,28 @@ public class AuthService {
         throw new BusinessException("Invalid refresh token", ErrorCode.UNAUTHORIZED);
     }
 
-    public void logout() {
+    public void logout(String authHeader) {
         // Future enhancement: Add token to a Redis blacklist database here
         log.info("User requested logout. Frontend should clear tokens.");
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return;
+        }
+
+        String token = authHeader.substring(7);
+       
+        long remainingTime = jwtService.getRemainingExpirationTime(token);
+
+        if (remainingTime > 0) {
+            redisTemplate.opsForValue().set(
+                "blacklist:" + token, 
+                "revoked", 
+                remainingTime, 
+                TimeUnit.MILLISECONDS
+            );
+
+            log.info("Token successfully blacklisted in Redis.");
+        }
     }
 
     public void forgotPassword(String email) {
@@ -154,6 +184,9 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
 
+        userDetailsService.evictUserDetails(user);
+        
+
         Map<String, Object> emailVariables = new HashMap<>();
         emailVariables.put("userName", user.getUsername());
         
@@ -164,6 +197,28 @@ public class AuthService {
             emailVariables, 
             null
         );
+    }
+
+    @Transactional
+    public void changePassword(ChangePasswordRequest changePasswordRequest){
+        UUID currentUserId = getCurrentUserId();
+        
+        User user = userRepository.findByIdAndActiveTrue(currentUserId)
+            .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.USER_NOT_FOUND));
+
+        if (!passwordEncoder.matches(changePasswordRequest.getOldPassword(), user.getPassword())) {
+            throw new BusinessException("Incorrect current password", ErrorCode.UNAUTHORIZED);
+        }
+
+        if (passwordEncoder.matches(changePasswordRequest.getNewPassword(), user.getPassword())) {
+            throw new BusinessException("New password cannot be the same as the old password", ErrorCode.BUSINESS_RULE_VIOLATION);
+        }
+
+        user.setPassword(passwordEncoder.encode(changePasswordRequest.getNewPassword()));
+        userRepository.save(user);
+
+        userDetailsService.evictUserDetails(user);
+
     }
 
     @Transactional
@@ -187,6 +242,8 @@ public class AuthService {
 
         user.setEmailVerified(true);
         userRepository.save(user);
+
+        userDetailsService.evictUserDetails(user);
     }
 
     public void sendVerificationEmail (String email) {
@@ -208,5 +265,15 @@ public class AuthService {
             );
 
         });
+    }
+
+    private UUID getCurrentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication != null && authentication.getPrincipal() instanceof CustomUserPrincipal principal) {
+            return principal.getId();
+        }
+
+        throw new BusinessException("Unable to resolve current user", ErrorCode.UNAUTHORIZED);
     }
 }

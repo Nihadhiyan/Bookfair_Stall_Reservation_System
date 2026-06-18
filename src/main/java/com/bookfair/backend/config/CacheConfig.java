@@ -39,7 +39,7 @@ public class CacheConfig{
             cacheConfiguration().entryTtl(Duration.ofMinutes(10))
         )
         .withCacheConfiguration(
-            "UserDetailsById", 
+            "userDetailsById", 
             cacheConfiguration().entryTtl(Duration.ofMinutes(10))
         );
     }

@@ -66,26 +66,11 @@ public class UserService {
                         ErrorCode.USER_NOT_FOUND));
 
 
-        // ----------------------- Part Start -----------------------------------
-        
-        // This part is not deployment level if want to make the username update possible we need to change the jwt desgn it is hard now but in future we wil do it
-        // This is because if we change  the username the jwt becomes invalid and they will probably need to login again we will not let this happen in future
-
-        // if (userUpdateRequest.getUsername() != null &&
-        //         !userUpdateRequest.getUsername().equals(user.getUsername()) &&
-        //         userRepository.existsByUsernameAndActiveTrue(userUpdateRequest.getUsername())) {
-        //     throw new DuplicateResourceException("Username is already taken.", ErrorCode.DUPLICATE_USERNAME);
-        // }
-
-        //Disabled username changes
-        if (userUpdateRequest.getUsername() != null && !userUpdateRequest.getUsername().equals(user.getUsername())) {
-
-            throw new BusinessException(
-                "Username changes are not supported",
-                ErrorCode.BUSINESS_RULE_VIOLATION);
+        if (userUpdateRequest.getUsername() != null &&
+                !userUpdateRequest.getUsername().equals(user.getUsername()) &&
+                userRepository.existsByUsernameAndActiveTrue(userUpdateRequest.getUsername())) {
+            throw new DuplicateResourceException("Username is already taken.", ErrorCode.DUPLICATE_USERNAME);
         }
-
-        // ------------------------------- Part End -----------------------------------------
 
         if (userUpdateRequest.getEmail() != null &&
                 !userUpdateRequest.getEmail().equals(user.getEmail()) &&

@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -22,6 +23,7 @@ import com.bookfair.backend.dto.auth.request.ResetPasswordRequest;
 import com.bookfair.backend.dto.auth.request.VerifyEmailRequest;
 import com.bookfair.backend.dto.auth.response.AuthResponse;
 import com.bookfair.backend.dto.user.request.ChangePasswordRequest;
+import com.bookfair.backend.event.UserUpdatedEvent;
 import com.bookfair.backend.exception.BusinessException;
 import com.bookfair.backend.exception.DuplicateResourceException;
 import com.bookfair.backend.exception.ErrorCode;
@@ -49,6 +51,7 @@ public class AuthService {
     private final CustomUserDetailsService userDetailsService;
     private final EmailService emailService;
     private final StringRedisTemplate redisTemplate;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public AuthResponse register(RegisterRequest registerRequest) {
@@ -66,8 +69,6 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
 
         User savedUser = userRepository.save(user);
-
-        userDetailsService.evictUserDetails(savedUser);
 
         String accessToken = jwtService.generateAccessToken(savedUser);
         String refreshToken = jwtService.generateRefreshToken(savedUser);
@@ -102,7 +103,7 @@ public class AuthService {
 
         UserDetails userDetails = userDetailsService.loadUserById(userId);
 
-        if (userId != null && jwtService.validateToken(refreshTokenRequest.getRefreshToken(), userDetails)) {
+        if (jwtService.validateToken(refreshTokenRequest.getRefreshToken(), userDetails)) {
             User user = userRepository.findByIdAndActiveTrue(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.USER_NOT_FOUND));
 
@@ -119,7 +120,7 @@ public class AuthService {
     }
 
     public void logout(String authHeader) {
-        // Future enhancement: Add token to a Redis blacklist database here
+
         log.info("User requested logout. Frontend should clear tokens.");
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -131,14 +132,19 @@ public class AuthService {
         long remainingTime = jwtService.getRemainingExpirationTime(token);
 
         if (remainingTime > 0) {
-            redisTemplate.opsForValue().set(
-                "blacklist:" + token, 
-                "revoked", 
-                remainingTime, 
-                TimeUnit.MILLISECONDS
-            );
+            try {
+                redisTemplate.opsForValue().set(
+                    "blacklist:" + token, 
+                    "revoked", 
+                    remainingTime, 
+                    TimeUnit.MILLISECONDS
+                );
 
-            log.info("Token successfully blacklisted in Redis.");
+                log.info("Token successfully blacklisted in Redis.");
+            }
+            catch (Exception e) {
+                log.warn("Failed to blacklist token in Redis: {}. Token will expire naturally.", e.getMessage());
+            }
         }
     }
 
@@ -169,7 +175,7 @@ public class AuthService {
 
         UserDetails userDetails = userDetailsService.loadUserById(userId);
 
-        if (userId == null || !jwtService.validateToken(request.getResetToken(), userDetails)) {
+        if (!jwtService.validateToken(request.getResetToken(), userDetails)) {
             throw new BusinessException("Invalid or expired reset token.", ErrorCode.UNAUTHORIZED);
         }
 
@@ -185,7 +191,7 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
 
-        userDetailsService.evictUserDetails(user);
+        eventPublisher.publishEvent(new UserUpdatedEvent(user.getId(), user.getUsername()));
         
 
         Map<String, Object> emailVariables = new HashMap<>();
@@ -218,7 +224,7 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(changePasswordRequest.getNewPassword()));
         userRepository.save(user);
 
-        userDetailsService.evictUserDetails(user);
+        eventPublisher.publishEvent(new UserUpdatedEvent(user.getId(), user.getUsername()));
 
     }
 
@@ -231,7 +237,7 @@ public class AuthService {
 
         UserDetails userDetails = userDetailsService.loadUserById(userId);
 
-        if (userId == null || !jwtService.validateToken(verificationToken, userDetails)) {
+        if (!jwtService.validateToken(verificationToken, userDetails)) {
             throw new BusinessException("Invalid or expired verification token.", ErrorCode.UNAUTHORIZED);
         }
 
@@ -244,10 +250,14 @@ public class AuthService {
         User user = userRepository.findByIdAndActiveTrue(userId)
             .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.USER_NOT_FOUND));
 
+        if (Boolean.TRUE.equals(user.getEmailVerified())) {
+            throw new DuplicateResourceException("Email Already Verified.", ErrorCode.UNAUTHORIZED);
+        }
+
         user.setEmailVerified(true);
         userRepository.save(user);
 
-        userDetailsService.evictUserDetails(user);
+        eventPublisher.publishEvent(new UserUpdatedEvent(user.getId(), user.getUsername()));
     }
 
     public void sendVerificationEmail (String email) {

@@ -82,6 +82,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             } catch (UsernameNotFoundException | DisabledException e) {
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\": \"Unauthorized\"}");
                 return;
             }
 

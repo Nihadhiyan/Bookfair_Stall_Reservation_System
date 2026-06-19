@@ -5,6 +5,7 @@ import java.time.Duration;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.cache.autoconfigure.RedisCacheManagerBuilderCustomizer;
 import org.springframework.cache.Cache;
+import org.springframework.cache.annotation.CachingConfigurer;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.interceptor.CacheErrorHandler;
 import org.springframework.context.annotation.Bean;
@@ -18,7 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 @Configuration
 @EnableCaching
 @Slf4j
-public class CacheConfig{
+public class CacheConfig implements CachingConfigurer {
     
     @Bean
     public RedisCacheConfiguration cacheConfiguration() {
@@ -44,8 +45,9 @@ public class CacheConfig{
         );
     }
 
+    @Override
     @Bean
-    public CacheErrorHandler cacheErrorHandler() {
+    public CacheErrorHandler errorHandler() {
         return new CacheErrorHandler() {
 
             @Override

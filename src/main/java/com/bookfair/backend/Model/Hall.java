@@ -3,7 +3,6 @@ package com.bookfair.backend.model;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.AttributeOverrides;
@@ -11,17 +10,18 @@ import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
@@ -32,8 +32,18 @@ import lombok.Setter;
 import lombok.ToString;
 
 @Entity
-@Table(name = "halls")
-@EntityListeners(AuditingEntityListener.class)
+@Table(
+    name = "halls",
+    indexes = {
+        @Index(name = "idx_hall_floor", columnList = "floor_id")
+    },
+    uniqueConstraints = {
+        @UniqueConstraint(
+            name = "uk_hall_floor_name",
+            columnNames = {"floor_id", "name"}
+        )
+    }
+)
 @Getter
 @Setter
 @AllArgsConstructor
@@ -53,12 +63,12 @@ public class Hall extends BaseEntity {
     private HallType hallType;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "floor_id")
+    @JoinColumn(name = "floor_id", nullable = false)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Floor floor;
 
-    @OneToMany(mappedBy = "hall", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "hall", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private List<Stall> stalls;
@@ -85,10 +95,6 @@ public class Hall extends BaseEntity {
     @Column(name = "max_stalls")
     @Min(value = 0, message = "Max stalls must be non-negative")
     private Integer maxStalls;
-
-    @Column(name = "current_stall_count")
-    @Min(value = 0, message = "Current stall count must be non-negative")
-    private Integer currentStallCount;
 
     @Column(name = "wifi_available")
     private Boolean wifiAvailable = false;

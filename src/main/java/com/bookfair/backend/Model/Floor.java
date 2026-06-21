@@ -3,20 +3,21 @@ package com.bookfair.backend.model;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EntityListeners;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -28,8 +29,18 @@ import lombok.Setter;
 import lombok.ToString;
 
 @Entity
-@Table (name = "floors")
-@EntityListeners(AuditingEntityListener.class)
+@Table (
+    name = "floors",
+    indexes = {
+        @Index(name = "idx_floor_building", columnList = "building_id")
+    },
+    uniqueConstraints = {
+        @UniqueConstraint(
+            name = "uk_floor_building_level",
+            columnNames = {"building_id", "level_number"}
+        )
+    }
+)
 @Getter
 @Setter
 @AllArgsConstructor
@@ -55,8 +66,9 @@ public class Floor extends BaseEntity {
     @EqualsAndHashCode.Exclude
     private Building building;
 
-    @OneToMany(mappedBy = "floor", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "floor", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
+    @OrderBy("levelNumber ASC")
     private List<Hall> halls;
 }

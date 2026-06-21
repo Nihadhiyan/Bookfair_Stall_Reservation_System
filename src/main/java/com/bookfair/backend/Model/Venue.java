@@ -3,12 +3,10 @@ package com.bookfair.backend.model;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EntityListeners;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -32,7 +30,6 @@ import lombok.ToString;
         @Index(name = "idx_venue_name", columnList = "name")
     }
 )
-@EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
 @AllArgsConstructor

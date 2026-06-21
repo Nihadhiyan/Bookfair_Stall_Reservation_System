@@ -63,11 +63,8 @@ public class LayoutGenerationService {
             currentY += stallLength + aisleWidth;
         }
 
-        int currentCount = hall.getCurrentStallCount() != null ? hall.getCurrentStallCount() : 0;
+        List<Stall> savedStalls = stallRepository.saveAll(generatedStalls);
 
-        hall.setCurrentStallCount(currentCount + generatedStalls.size());
-        hallRepository.save(hall);
-
-        return stallRepository.saveAll(generatedStalls);
+        return savedStalls;
     }
 }

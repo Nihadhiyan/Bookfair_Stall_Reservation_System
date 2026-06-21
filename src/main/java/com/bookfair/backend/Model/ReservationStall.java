@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -16,6 +15,10 @@ import java.util.UUID;
 @Entity
 @Table(
     name = "reservation_stalls",
+     indexes = {
+        @Index(name = "idx_rs_reservation", columnList = "reservation_id"),
+        @Index(name = "idx_rs_book_fair_stall", columnList = "book_fair_stall_id")
+    },
     uniqueConstraints = {
         @UniqueConstraint(
             columnNames = {"reservation_id", "book_fair_stall_id"},
@@ -23,7 +26,6 @@ import java.util.UUID;
         )
     }
 )
-@EntityListeners(AuditingEntityListener.class)
 @Setter
 @Getter
 @NoArgsConstructor

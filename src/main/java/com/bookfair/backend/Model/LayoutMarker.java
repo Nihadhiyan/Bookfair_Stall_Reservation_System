@@ -2,14 +2,12 @@ package com.bookfair.backend.model;
 
 import java.util.UUID;
 
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.AttributeOverrides;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
@@ -31,7 +29,6 @@ import lombok.ToString;
 
 @Entity
 @Table(name = "layout_markers")
-@EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
 @NoArgsConstructor

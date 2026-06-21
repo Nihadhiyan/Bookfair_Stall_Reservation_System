@@ -8,7 +8,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
@@ -16,8 +15,13 @@ import java.io.Serializable;
 import java.util.UUID;
 
 @Entity
-@Table(name = "users")
-@EntityListeners(AuditingEntityListener.class)
+@Table(
+    name = "users",
+    indexes = {
+        @Index(name = "idx_user_active", columnList = "active"),
+        @Index(name = "idx_user_role", columnList = "role")
+    }
+)
 @Getter
 @Setter
 @NoArgsConstructor

@@ -9,7 +9,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -22,9 +21,10 @@ import java.util.UUID;
     indexes = {
         @Index(name = "idx_reservation_user", columnList = "user_id"),
         @Index(name = "idx_reservation_bookfair", columnList = "book_fair_id"),
+        @Index(name = "idx_reservation_expires", columnList = "expires_at"),
+        @Index(name = "idx_reservation_status", columnList = "status")
     }
 )
-@EntityListeners(AuditingEntityListener.class)
 @Setter
 @Getter
 @NoArgsConstructor

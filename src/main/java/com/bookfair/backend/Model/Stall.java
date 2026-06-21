@@ -10,7 +10,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.util.UUID;
 
@@ -19,9 +18,14 @@ import java.util.UUID;
     name = "stalls",
     indexes = {
         @Index(name = "idx_stall_hall", columnList = "hall_id")
+    },
+    uniqueConstraints = {
+        @UniqueConstraint (
+            name = "uk_stall_name_hall",
+            columnNames = {"hall_id", "name"}
+        )
     }
 )
-@EntityListeners(AuditingEntityListener.class)
 @Setter
 @Getter
 @NoArgsConstructor
@@ -37,7 +41,7 @@ public class Stall extends BaseEntity {
     private String name;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "hall_id")
+    @JoinColumn(name = "hall_id", nullable = false)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Hall hall;

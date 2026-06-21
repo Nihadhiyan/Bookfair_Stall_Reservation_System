@@ -32,18 +32,12 @@ import lombok.Setter;
 import lombok.ToString;
 
 @Entity
-@Table(
-    name = "halls",
-    indexes = {
+@Table(name = "halls", indexes = {
         @Index(name = "idx_hall_floor", columnList = "floor_id")
-    },
-    uniqueConstraints = {
-        @UniqueConstraint(
-            name = "uk_hall_floor_name",
-            columnNames = {"floor_id", "name"}
-        )
-    }
-)
+}, uniqueConstraints = {
+        @UniqueConstraint(name = "uk_hall_floor_name", columnNames = { "floor_id", "name" }),
+        @UniqueConstraint(name = "uk_hall_venue_name", columnNames = { "venue_id", "name" })
+})
 @Getter
 @Setter
 @AllArgsConstructor
@@ -59,11 +53,15 @@ public class Hall extends BaseEntity {
     private String name;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "hall_type")
+    @Column(name = "space_category", nullable = false)
+    private SpaceCategory spaceCategory;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "hall_type", nullable = false)
     private HallType hallType;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "floor_id", nullable = false)
+    @JoinColumn(name = "floor_id", nullable = true)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Floor floor;
@@ -78,10 +76,10 @@ public class Hall extends BaseEntity {
 
     @Embedded
     @AttributeOverrides({
-        @AttributeOverride(name = "xCoord", column = @Column(name =  "hall_x_coord")),
-        @AttributeOverride(name = "yCoord", column = @Column(name = "hall_y_coord")),
-        @AttributeOverride(name = "width", column = @Column(name = "hall_width")),
-        @AttributeOverride(name = "height", column = @Column(name = "hall_height"))
+            @AttributeOverride(name = "xCoord", column = @Column(name = "hall_x_coord")),
+            @AttributeOverride(name = "yCoord", column = @Column(name = "hall_y_coord")),
+            @AttributeOverride(name = "width", column = @Column(name = "hall_width")),
+            @AttributeOverride(name = "height", column = @Column(name = "hall_height"))
     })
     private LayoutPosition layout;
 
@@ -102,20 +100,31 @@ public class Hall extends BaseEntity {
     @Column(name = "air_conditioned")
     private Boolean airConditioned = false;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "venue_id", nullable = true)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private Venue venue;
+
     @OneToMany(mappedBy = "hall", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private List<LayoutMarker> markers;
+
+    public enum SpaceCategory {
+        INDOOR,
+        OUTDOOR
+    }
 
     public enum HallType {
         STANDARD,
         PREMIUM,
         FOOD_COURT,
         CHILDREN,
-        OUTDOOR,
         VIP,
-        SPONSOR
+        SPONSOR,
+        EXHIBITION,
+        GENERAL
     }
 
-    
 }

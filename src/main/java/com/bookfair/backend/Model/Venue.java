@@ -67,6 +67,15 @@ public class Venue extends BaseEntity {
     @Column(name = "website")
     private String website;
 
+    @Column(name = "latitude", precision = 9, scale = 6)
+    private Double latitude;
+
+    @Column(name = "longitude", precision = 9, scale = 6)
+    private Double longitude;
+
+    @Column(name = "google_place_id")
+    private String googlePlaceId;
+
     @Column(name = "map_image_url")
     private String mapImageUrl;
 
@@ -90,6 +99,11 @@ public class Venue extends BaseEntity {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private List<LayoutMarker> markers;
+
+    @OneToMany(mappedBy = "venue", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private List<Hall> halls;
 
     @OneToMany(mappedBy = "venue", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @ToString.Exclude

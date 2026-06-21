@@ -72,7 +72,7 @@ public class Building extends BaseEntity {
 
     @Column(name = "square_footage")
     @Min(value = 0, message = "Square footage must be non-negative")
-    private double sqrft;
+    private double squareFootage ;
 
     @Column(name = "active", nullable = false)
     private Boolean active = true;

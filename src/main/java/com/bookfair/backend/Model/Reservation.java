@@ -62,7 +62,7 @@ public class Reservation extends BaseEntity {
     @Column(nullable = false)
     private ReservationStatus status;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "genre_id")
     @ToString.Exclude
     @EqualsAndHashCode.Exclude

@@ -100,6 +100,15 @@ public class UserService {
                         "User not found with ID: " + userId,
                         ErrorCode.USER_NOT_FOUND));
 
+        UUID currentUserId = getCurrentUserId();
+
+        if (currentUserId.equals(userId)) { 
+            throw new BusinessException(
+                "You cannot delete your own admin account.",
+                ErrorCode.BUSINESS_RULE_VIOLATION
+            );
+        }
+
         if (user.getRole() == Role.ADMIN && userRepository.countByRoleAndActiveTrue(Role.ADMIN) == 1) {
             throw new BusinessException("Cannot remove the last administrator", ErrorCode.FORBIDDEN);
         }

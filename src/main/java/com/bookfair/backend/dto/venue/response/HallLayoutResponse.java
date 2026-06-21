@@ -16,6 +16,7 @@ import lombok.Setter;
 public class HallLayoutResponse {
     private UUID id;
     private String name;
+    private String spaceCategory;
     private String hallType;
     private List<LayoutMarkerDto> markers;
     private List<StallResponse> stalls;

@@ -18,4 +18,8 @@ public interface HallRepository extends JpaRepository<Hall, UUID> {
     List<Hall> findByActiveTrue();
 
     long countById(UUID Id);
+    
+    List<Hall> findBySpaceCategoryAndActiveTrue(Hall.SpaceCategory spaceCategory);
+
+    List<Hall> findByVenueIdAndActiveTrue(UUID venueId);
 }

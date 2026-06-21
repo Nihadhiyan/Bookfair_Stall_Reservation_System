@@ -16,7 +16,9 @@ public interface VenueRepository extends JpaRepository<Venue, UUID> {
         "buildings",
         "buildings.floors",
         "buildings.floors.halls",
-        "buildings.floors.halls.stalls"
+        "buildings.floors.halls.stalls",
+        "halls",
+        "halls.stalls"
     })
     Optional<Venue> findDetailedById(UUID id);
 

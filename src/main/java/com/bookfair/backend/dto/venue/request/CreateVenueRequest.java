@@ -44,6 +44,15 @@ public class CreateVenueRequest {
     @Pattern(regexp = "^(https?://)?(www\\.)?([a-zA-Z0-9]+\\.)?[a-zA-Z0-9]+\\.[a-zA-Z]{2,}(/\\S*)?$", message = "Website must be a valid URL")
     private String website;
 
+    @NotNull(message = "Latitude is required")
+    private Double latitude;
+
+    @NotNull(message = "Longitude is required")
+    private Double longitude;
+
+    @NotBlank(message = "Google Place Id is required")
+    private String googlePlaceId;
+
     @NotBlank(message = "Map image url is required")
     private String mapImageUrl;
 

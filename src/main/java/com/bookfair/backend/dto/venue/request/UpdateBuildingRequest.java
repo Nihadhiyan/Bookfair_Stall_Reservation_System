@@ -29,9 +29,6 @@ public class UpdateBuildingRequest {
     @NotNull(message = "Square footage is required")
     private Double squareFootage;
 
-    @NotNull(message = "Number of floors is required")
-    private Integer numberOfFloors;
-
     @NotBlank(message = "Type is required")
     private String type;
     

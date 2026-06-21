@@ -15,6 +15,7 @@ import lombok.Setter;
 public class HallResponse {
     private UUID id;
     private String name;
+    private String spaceCategory;
     private String hallType;
     private LayoutPositionDto layout;
     private String blueprintImageUrl;

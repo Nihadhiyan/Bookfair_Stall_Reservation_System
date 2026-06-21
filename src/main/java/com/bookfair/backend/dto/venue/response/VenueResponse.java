@@ -21,6 +21,9 @@ public class VenueResponse {
     private String contactNumber;
     private String email;
     private String website;
+    private Double latitude;
+    private Double longitude;
+    private String googlePlaceId;
     private String mapImageUrl;
     private String blueprintImageUrl;
     private Double totalSquareFootage;

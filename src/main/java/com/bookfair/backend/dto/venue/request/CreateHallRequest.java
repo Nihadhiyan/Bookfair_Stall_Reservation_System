@@ -3,6 +3,8 @@ package com.bookfair.backend.dto.venue.request;
 import java.util.UUID;
 
 import com.bookfair.backend.dto.common.LayoutPositionDto;
+import com.bookfair.backend.model.Hall;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -16,14 +18,19 @@ import jakarta.validation.constraints.NotNull;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CreateHallRequest {
-    @NotNull(message = "Floor id is required")
+    
     private UUID floorId;
+
+    private UUID venueId;
 
     @NotBlank(message = "Name is required")
     private String name;
 
-    @NotBlank(message = "Hall type is required")
-    private String hallType;
+    @NotNull(message = "Space category is required")
+    private Hall.SpaceCategory spaceCategory;
+
+    @NotNull(message = "Hall type is required")
+    private Hall.HallType hallType;
 
     @Valid
     @NotNull(message = "Layout is required")

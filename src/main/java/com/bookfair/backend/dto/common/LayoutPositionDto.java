@@ -14,6 +14,6 @@ public class LayoutPositionDto {
     private Integer yCoord;
     private Integer width;
     private Integer height;
-    private Integer rotation;
-    private Integer zIndex;
+    // private Integer rotation;
+    // private Integer zIndex;
 }

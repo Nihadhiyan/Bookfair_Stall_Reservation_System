@@ -18,7 +18,9 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
 
     Optional<Event> findByIdAndActiveTrue(UUID id);
 
-    Event findByOrganizerId(UUID orgId);
+    Optional<Event> findById(UUID id);
+
+    List<Event> findByOrganizerId(UUID orgId);
 
     List<Event> findByPartners_Id(UUID orgId);
 

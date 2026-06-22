@@ -79,6 +79,18 @@ public class Organization extends BaseEntity {
     @Embedded
     private DeletionAudit deletionAudit;
 
+    public boolean isVenueOwner() {
+        return capabilities != null && capabilities.contains(OrganizationCapability.OWNS_VENUES);
+    }
+
+    public boolean isEventOrganizer() {
+        return capabilities != null && capabilities.contains(OrganizationCapability.ORGANIZES_EVENTS);
+    }
+
+    public boolean isVendor() {
+        return capabilities != null && capabilities.contains(OrganizationCapability.OPERATES_STALLS);
+    }
+
     public enum OrganizationCapability {
         OWNS_VENUES,
         ORGANIZES_EVENTS,

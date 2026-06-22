@@ -207,8 +207,10 @@ public class UserService {
                 "User not found with ID: " + id,
                 ErrorCode.USER_NOT_FOUND));
 
-        User requestingUser = userRepository.findById(getCurrentUserId()).orElseThrow(() -> new ResourceNotFoundException(
-                "User not found with ID: " + getCurrentUserId(),
+        UUID currentUserId = getCurrentUserId();
+
+        User requestingUser = userRepository.findById(currentUserId).orElseThrow(() -> new ResourceNotFoundException(
+                "User not found with ID: " + currentUserId,
                 ErrorCode.USER_NOT_FOUND));
 
         if (targetUser.getRole() == Role.SUPER_ADMIN

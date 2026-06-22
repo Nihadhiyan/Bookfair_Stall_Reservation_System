@@ -1,4 +1,4 @@
-package com.bookfair.backend.dto.venue.request;
+package com.bookfair.backend.dto.hall.request;
 
 import java.util.UUID;
 
@@ -17,7 +17,7 @@ import jakarta.validation.constraints.NotNull;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class CreateHallRequest {
+public class UpdateHallRequest {
     
     private UUID floorId;
 
@@ -47,7 +47,11 @@ public class CreateHallRequest {
 
     @NotNull(message = "Wifi available is required")
     private Boolean wifiAvailable;
-    
+
     @NotNull(message = "Air conditioned is required")
     private Boolean airConditioned;
+    
+    @NotNull(message = "Active is required")
+    private Boolean active;
+
 }

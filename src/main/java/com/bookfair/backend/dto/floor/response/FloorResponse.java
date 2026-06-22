@@ -1,4 +1,4 @@
-package com.bookfair.backend.dto.venue.response;
+package com.bookfair.backend.dto.floor.response;
 
 import java.util.UUID;
 import lombok.AllArgsConstructor;

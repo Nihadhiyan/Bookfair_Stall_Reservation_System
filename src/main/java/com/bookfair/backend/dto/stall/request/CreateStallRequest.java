@@ -1,4 +1,4 @@
-package com.bookfair.backend.dto.venue.request;
+package com.bookfair.backend.dto.stall.request;
 
 import java.util.UUID;
 
@@ -15,7 +15,7 @@ import jakarta.validation.constraints.NotNull;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class UpdateStallRequest {
+public class CreateStallRequest {
     @NotNull(message = "Hall id is required")
     private UUID hallId;
 
@@ -28,11 +28,7 @@ public class UpdateStallRequest {
     @Valid
     @NotNull(message = "Layout is required")
     private LayoutPositionDto layout;
-
+    
     @NotNull(message = "Square footage is required")
     private Double squareFootage;
-    
-    @NotNull(message = "Active is required")
-    private Boolean active;
-
 }

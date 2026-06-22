@@ -12,9 +12,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.bookfair.backend.dto.venue.request.CreateStallRequest;
-import com.bookfair.backend.dto.venue.request.UpdateStallRequest;
-import com.bookfair.backend.dto.venue.response.StallResponse;
+import com.bookfair.backend.dto.stall.request.CreateStallRequest;
+import com.bookfair.backend.dto.stall.request.UpdateStallRequest;
+import com.bookfair.backend.dto.stall.response.StallResponse;
 import com.bookfair.backend.service.StallService;
 
 import lombok.RequiredArgsConstructor;

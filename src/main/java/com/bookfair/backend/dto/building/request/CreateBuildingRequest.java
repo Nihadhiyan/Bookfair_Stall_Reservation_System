@@ -1,4 +1,4 @@
-package com.bookfair.backend.dto.venue.request;
+package com.bookfair.backend.dto.building.request;
 
 import java.util.UUID;
 

@@ -1,9 +1,11 @@
-package com.bookfair.backend.dto.venue.response;
+package com.bookfair.backend.dto.hall.response;
 
 import java.util.List;
 import java.util.UUID;
 
 import com.bookfair.backend.dto.common.LayoutMarkerDto;
+import com.bookfair.backend.dto.stall.response.StallResponse;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;

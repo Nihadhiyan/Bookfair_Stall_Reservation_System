@@ -1,4 +1,4 @@
-package com.bookfair.backend.dto.venue.response;
+package com.bookfair.backend.dto.stall.response;
 
 import java.util.UUID;
 
@@ -12,17 +12,11 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class HallResponse {
+public class StallLayoutResponse {
     private UUID id;
     private String name;
-    private String spaceCategory;
-    private String hallType;
+    private String stallType;
     private LayoutPositionDto layout;
-    private String blueprintImageUrl;
-    private Double squareFootage;
     private Boolean active;
-    private Integer maxStalls;
-    private Integer currentStallCount;
-    private Boolean wifiAvailable;
-    private Boolean airConditioned;
+
 }

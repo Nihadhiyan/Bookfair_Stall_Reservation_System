@@ -70,7 +70,6 @@ public class UserService {
                         "User not found with username: " + username,
                         ErrorCode.USER_NOT_FOUND));
 
-
         if (userUpdateRequest.getUsername() != null &&
                 !userUpdateRequest.getUsername().equals(user.getUsername()) &&
                 userRepository.existsByUsernameAndActiveTrue(userUpdateRequest.getUsername())) {
@@ -89,7 +88,7 @@ public class UserService {
 
         User updatedUser = userRepository.save(user);
 
-        eventPublisher.publishEvent(new UserUpdatedEvent(user.getId(), user.getUsername()));
+        publishUserUpdatedEvent(user);
 
         return userMapper.toUserResponse(updatedUser);
     }
@@ -102,28 +101,23 @@ public class UserService {
                         "User not found with ID: " + userId,
                         ErrorCode.USER_NOT_FOUND));
 
-        UUID currentUserId = getCurrentUserId();
+        User requestingUser = getCurrentUser();
 
-        User requestingUser = userRepository.findById(currentUserId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "User not found with ID: " + currentUserId,
-                        ErrorCode.USER_NOT_FOUND));
-        
-
-        if (currentUserId.equals(userId)) { 
+        if (requestingUser.getId().equals(userId)) {
             throw new BusinessException(
-                "You cannot delete your own admin account.",
-                ErrorCode.BUSINESS_RULE_VIOLATION
-            );
+                    "You cannot delete your own admin account.",
+                    ErrorCode.BUSINESS_RULE_VIOLATION);
         }
 
-        if (targetUser.getRole() == Role.SUPER_ADMIN && userRepository.countByRoleAndActiveTrue(Role.SUPER_ADMIN) == 1) {
+        if (targetUser.getRole() == Role.SUPER_ADMIN
+                && userRepository.countByRoleAndActiveTrue(Role.SUPER_ADMIN) == 1) {
             throw new BusinessException("Cannot remove the last administrator", ErrorCode.FORBIDDEN);
         }
 
         if (requestingUser.getRole() == Role.ORG_ADMIN) {
             if (requestingUser.getOrganization() == null || targetUser.getOrganization() == null) {
-                throw new ForbiddenException("Operation not permitted: Missing organization context.", ErrorCode.FORBIDDEN);
+                throw new ForbiddenException("Operation not permitted: Missing organization context.",
+                        ErrorCode.FORBIDDEN);
             }
 
             if (!requestingUser.getOrganization().getId().equals(targetUser.getOrganization().getId())) {
@@ -132,20 +126,14 @@ public class UserService {
 
             if (targetUser.getRole() == Role.ORG_ADMIN) {
                 long adminCount = userRepository.countByOrganizationIdAndRoleAndActiveTrue(
-                    targetUser.getOrganization().getId(), Role.ORG_ADMIN
-                );
+                        targetUser.getOrganization().getId(), Role.ORG_ADMIN);
                 if (adminCount <= 1) {
                     throw new BusinessException("Cannot delete the last ORG_ADMIN.", ErrorCode.BUSINESS_RULE_VIOLATION);
                 }
             }
         }
 
-        targetUser.setActive(false);
-        targetUser.setDeletionAudit(new DeletionAudit(LocalDateTime.now(), getCurrentUserId()));
-
-        userRepository.save(targetUser);
-
-        eventPublisher.publishEvent(new UserUpdatedEvent(targetUser.getId(), targetUser.getUsername()));
+        softDelete(targetUser);
 
     }
 
@@ -162,12 +150,7 @@ public class UserService {
                     ErrorCode.FORBIDDEN);
         }
 
-        user.setActive(false);
-        user.setDeletionAudit(new DeletionAudit(LocalDateTime.now(), getCurrentUserId()));
-
-        userRepository.save(user);
-
-        eventPublisher.publishEvent(new UserUpdatedEvent(user.getId(), user.getUsername()));
+        softDelete(user);
 
     }
 
@@ -179,8 +162,8 @@ public class UserService {
                         ErrorCode.USER_NOT_FOUND));
 
         return reservationRepository.findByUserOrderByCreatedAtDesc(user)
-            .stream()
-            .map(reservationMapper::toReservationResponse).toList();
+                .stream()
+                .map(reservationMapper::toReservationResponse).toList();
     }
 
     @Transactional(readOnly = true)
@@ -191,14 +174,14 @@ public class UserService {
                         ErrorCode.USER_NOT_FOUND));
 
         return reservationRepository.findByUserOrderByCreatedAtDesc(user)
-            .stream()
-            .map(reservationMapper::toReservationResponse).toList();
+                .stream()
+                .map(reservationMapper::toReservationResponse).toList();
     }
 
     @Transactional(readOnly = true)
     public Page<UserResponse> getAllUsers(Pageable pageable) {
         return userRepository.findAllByActiveTrue(pageable)
-            .map(userMapper::toUserResponse);
+                .map(userMapper::toUserResponse);
     }
 
     @Transactional
@@ -207,77 +190,98 @@ public class UserService {
                 "User not found with ID: " + id,
                 ErrorCode.USER_NOT_FOUND));
 
-        UUID currentUserId = getCurrentUserId();
-
-        User requestingUser = userRepository.findById(currentUserId).orElseThrow(() -> new ResourceNotFoundException(
-                "User not found with ID: " + currentUserId,
-                ErrorCode.USER_NOT_FOUND));
+        User requestingUser = getCurrentUser();
 
         if (targetUser.getRole() == Role.SUPER_ADMIN
-            && updateUserRoleRequest.getRole() != Role.SUPER_ADMIN
-            && userRepository.countByRoleAndActiveTrue(Role.SUPER_ADMIN) == 1) {
+                && updateUserRoleRequest.getRole() != Role.SUPER_ADMIN
+                && userRepository.countByRoleAndActiveTrue(Role.SUPER_ADMIN) == 1) {
 
             throw new BusinessException("Cannot change the role of last Super admin", ErrorCode.FORBIDDEN);
         }
 
-        if(targetUser.getRole() == Role.SUPER_ADMIN && requestingUser.getRole() != Role.SUPER_ADMIN) {
-                 throw new ForbiddenException(
-                "Cannot modify SUPER_ADMIN accounts",
-                ErrorCode.FORBIDDEN
-            );
+        if (targetUser.getRole() == Role.SUPER_ADMIN && requestingUser.getRole() != Role.SUPER_ADMIN) {
+            throw new ForbiddenException(
+                    "Cannot modify SUPER_ADMIN accounts",
+                    ErrorCode.FORBIDDEN);
         }
 
         if (requestingUser.getRole() == Role.ORG_ADMIN) {
             if (requestingUser.getOrganization() == null || targetUser.getOrganization() == null) {
-                throw new ForbiddenException("Operation not permitted: Missing organization context.", ErrorCode.FORBIDDEN);
+                throw new ForbiddenException("Operation not permitted: Missing organization context.",
+                        ErrorCode.FORBIDDEN);
             }
-            
+
             if (!requestingUser.getOrganization().getId().equals(targetUser.getOrganization().getId())) {
                 throw new ForbiddenException("You cannot modify users outside your organization.", ErrorCode.FORBIDDEN);
             }
         }
 
-        if (targetUser.getRole() == Role.ORG_ADMIN && updateUserRoleRequest.getRole() != Role.ORG_ADMIN && targetUser.getOrganization() != null) {
+        if (targetUser.getRole() == Role.ORG_ADMIN && updateUserRoleRequest.getRole() != Role.ORG_ADMIN
+                && targetUser.getOrganization() != null) {
             long adminCount = userRepository.countByOrganizationIdAndRoleAndActiveTrue(
-                targetUser.getOrganization().getId(), Role.ORG_ADMIN
-            );
+                    targetUser.getOrganization().getId(), Role.ORG_ADMIN);
             if (adminCount <= 1) {
                 throw new BusinessException("Cannot degrade the last ORG_ADMIN.", ErrorCode.BUSINESS_RULE_VIOLATION);
             }
-        } 
+        }
 
-        if(requestingUser.getRole() == Role.ORG_ADMIN && updateUserRoleRequest.getRole() == Role.SUPER_ADMIN) {    
+        if (requestingUser.getRole() == Role.ORG_ADMIN && updateUserRoleRequest.getRole() == Role.SUPER_ADMIN) {
             throw new ForbiddenException(
-                "ORG_ADMIN cannot assign SUPER_ADMIN role",
-                ErrorCode.FORBIDDEN
-            );
+                    "ORG_ADMIN cannot assign SUPER_ADMIN role",
+                    ErrorCode.FORBIDDEN);
         }
 
         if (targetUser.getRole() == updateUserRoleRequest.getRole()) {
             throw new BusinessException(
-                "User already has this role",
-                ErrorCode.BUSINESS_RULE_VIOLATION);
+                    "User already has this role",
+                    ErrorCode.BUSINESS_RULE_VIOLATION);
         }
 
         targetUser.setRole(updateUserRoleRequest.getRole());
 
         userRepository.save(targetUser);
 
-        eventPublisher.publishEvent(new UserUpdatedEvent(targetUser.getId(), targetUser.getUsername()));
+        publishUserUpdatedEvent(targetUser);
 
     }
 
     private UUID getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        if(authentication.getPrincipal() instanceof CustomUserPrincipal principal) {
+        if (authentication.getPrincipal() instanceof CustomUserPrincipal principal) {
             return principal.getId();
         }
 
         throw new BusinessException(
-            "Unable to resolve current user",
-            ErrorCode.UNAUTHORIZED
-        );
+                "Unable to resolve current user",
+                ErrorCode.UNAUTHORIZED);
+    }
+
+    private User getCurrentUser() {
+        UUID currentUserId = getCurrentUserId();
+
+        return userRepository.findById(currentUserId)
+                .orElseThrow(
+                        () -> new ResourceNotFoundException(
+                                "Current user not found",
+                                ErrorCode.USER_NOT_FOUND));
+    }
+
+    private void softDelete(User user) {
+        user.setActive(false);
+        user.setDeletionAudit(
+                new DeletionAudit(
+                        LocalDateTime.now(),
+                        getCurrentUserId()));
+        userRepository.save(user);
+        publishUserUpdatedEvent(user);
+    }
+
+    private void publishUserUpdatedEvent(User user) {
+        eventPublisher.publishEvent(
+                new UserUpdatedEvent(
+                        user.getId(),
+                        user.getUsername()));
     }
 
 }

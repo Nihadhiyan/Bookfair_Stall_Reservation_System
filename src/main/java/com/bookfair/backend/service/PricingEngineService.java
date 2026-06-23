@@ -1,59 +1,119 @@
 package com.bookfair.backend.service;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import com.bookfair.backend.model.EventStall;
-import com.bookfair.backend.model.Stall.StallType;
+import com.bookfair.backend.dto.pricing.request.PricingRuleRequest;
+import com.bookfair.backend.dto.pricing.response.PricingBreakdownResponse;
+import com.bookfair.backend.dto.pricing.response.PricingRuleResponse;
+import com.bookfair.backend.dto.pricing.response.StallPricingResponse;
+import com.bookfair.backend.model.PricingRule;
+import com.bookfair.backend.model.Stall;
+import com.bookfair.backend.repository.PricingRuleRepository;
+import com.bookfair.backend.repository.StallRepository;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class PricingEngineService {
-    public BigDecimal calculateFinalPrice(EventStall eventStall) {
+
+    private final PricingRuleRepository pricingRuleRepository;
+    private final StallRepository stallRepository;
+
+    @Transactional(readOnly = true)
+    public PricingBreakdownResponse calculateQuote(List<UUID> stallIds, int durationDays, String orgType) {
+        List<Stall> stalls = stallRepository.findAllById(stallIds);
         
-        if (eventStall == null) {
-            return BigDecimal.ZERO;
+        List<PricingRule> activeRules = pricingRuleRepository.findAllByActiveTrue();
+        
+        BigDecimal subtotal = BigDecimal.ZERO;
+        List<StallPricingResponse> stallPricings = new ArrayList<>();
+
+        for (Stall stall : stalls) {
+            BigDecimal basePrice = BigDecimal.valueOf(stall.getAreaSquareFootage() * 10.0); // simple base logic
+            BigDecimal currentPrice = basePrice.multiply(BigDecimal.valueOf(durationDays));
+
+            for (PricingRule rule : activeRules) {
+                if ("ORG_TYPE".equalsIgnoreCase(rule.getConditionType()) && rule.getConditionValue().equalsIgnoreCase(orgType)) {
+                    currentPrice = currentPrice.multiply(rule.getMultiplier());
+                } else if ("DURATION".equalsIgnoreCase(rule.getConditionType())) {
+                    if (rule.getConditionValue().equals(">7_DAYS") && durationDays > 7) {
+                        currentPrice = currentPrice.multiply(rule.getMultiplier());
+                    }
+                }
+            }
+
+            subtotal = subtotal.add(currentPrice);
+
+            StallPricingResponse spr = new StallPricingResponse();
+            spr.setStallId(stall.getId());
+            spr.setStallNumber(stall.getStallNumber());
+            spr.setBasePrice(basePrice);
+            spr.setCalculatedPrice(currentPrice);
+            stallPricings.add(spr);
         }
 
-        if(eventStall.getManualOverridePrice() != null && 
-           eventStall.getManualOverridePrice().compareTo(BigDecimal.ZERO) > 0) {
-            
-            return eventStall.getManualOverridePrice();
+        BigDecimal discountAmount = BigDecimal.ZERO; // Optional complex logic
+        BigDecimal taxAmount = subtotal.multiply(BigDecimal.valueOf(0.1)); // 10% tax
+        BigDecimal total = subtotal.subtract(discountAmount).add(taxAmount);
 
-        }
+        PricingBreakdownResponse response = new PricingBreakdownResponse();
+        response.setStalls(stallPricings);
+        response.setSubtotal(subtotal);
+        response.setDiscountAmount(discountAmount);
+        response.setTaxAmount(taxAmount);
+        response.setTotal(total);
+        response.setCurrency("USD");
 
-        BigDecimal basePrice = eventStall.getBasePrice() != null 
-            ? eventStall.getBasePrice()
-            : BigDecimal.ZERO;
-
-        StallType stallType = (eventStall.getStall() != null && eventStall.getStall().getStallType() != null)
-            ? eventStall.getStall().getStallType()
-            : StallType.STANDARD;
-        
-        BigDecimal multiplier = getMultiplierForStallType(stallType);
-
-        return basePrice.multiply(multiplier).setScale(2, RoundingMode.HALF_UP);
-
+        return response;
     }
 
-    private BigDecimal getMultiplierForStallType(StallType stallType) {
-
-        return switch (stallType) {
-            case SPONSOR -> new BigDecimal("2.00"); // 100% markup (Double the base price)
-            case PREMIUM -> new BigDecimal("1.50"); // 50% markup
-            case ISLAND  -> new BigDecimal("1.30"); // 30% markup
-            case CORNER  -> new BigDecimal("1.15"); // 15% markup
-            case STANDARD -> new BigDecimal("1.00"); // No markup
-            default -> new BigDecimal("1.00");
-        };
+    @Transactional(readOnly = true)
+    public List<PricingRuleResponse> getActiveRules() {
+        return pricingRuleRepository.findAllByActiveTrue().stream().map(rule -> {
+            PricingRuleResponse response = new PricingRuleResponse();
+            response.setId(rule.getId());
+            response.setName(rule.getName());
+            response.setDescription(rule.getDescription());
+            response.setConditionType(rule.getConditionType());
+            response.setConditionValue(rule.getConditionValue());
+            response.setMultiplier(rule.getMultiplier());
+            response.setActive(rule.getActive());
+            return response;
+        }).collect(Collectors.toList());
     }
 
-    public Long convertToCents(BigDecimal finalPrice) {
-        if (finalPrice == null) {
-            return 0L;
-        }
+    @Transactional
+    public PricingRuleResponse createPricingRule(PricingRuleRequest request) {
+        PricingRule rule = new PricingRule();
+        rule.setName(request.getName());
+        rule.setDescription(request.getDescription());
+        rule.setConditionType(request.getConditionType());
+        rule.setConditionValue(request.getConditionValue());
+        rule.setMultiplier(request.getMultiplier());
+        rule.setActive(true);
 
-        return finalPrice.multiply(new BigDecimal("100")).longValueExact();
+        PricingRule saved = pricingRuleRepository.save(rule);
+
+        PricingRuleResponse response = new PricingRuleResponse();
+        response.setId(saved.getId());
+        response.setName(saved.getName());
+        response.setDescription(saved.getDescription());
+        response.setConditionType(saved.getConditionType());
+        response.setConditionValue(saved.getConditionValue());
+        response.setMultiplier(saved.getMultiplier());
+        response.setActive(saved.getActive());
+
+        log.info("Created new pricing rule: {}", saved.getName());
+        return response;
     }
 }

@@ -3,6 +3,7 @@ package com.bookfair.backend.service;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
@@ -36,6 +37,7 @@ public class OrganizationService {
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
     private final OrganizationMapper organizationMapper;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Transactional(readOnly = true)
     public Page<OrganizationResponse> getAllOrganizations(Pageable pageable) {
@@ -46,7 +48,8 @@ public class OrganizationService {
     @Transactional(readOnly = true)
     public OrganizationResponse getOrganizationById(UUID id) {
         Organization organization = organizationRepository.findByIdAndActiveTrue(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found", ErrorCode.ORGANIZATION_NOT_FOUND));
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found",
+                        ErrorCode.ORGANIZATION_NOT_FOUND));
 
         return organizationMapper.toOrganizationResponse(organization);
     }
@@ -54,7 +57,8 @@ public class OrganizationService {
     @Transactional
     public OrganizationResponse createOrganization(CreateOrganizationRequest request) {
         if (organizationRepository.existsByNameAndActiveTrue(request.getName())) {
-            throw new DuplicateResourceException("An organization with this name already exists.", ErrorCode.DUPLICATE_ORGANIZATION_NAME);
+            throw new DuplicateResourceException("An organization with this name already exists.",
+                    ErrorCode.DUPLICATE_ORGANIZATION_NAME);
         }
 
         Organization organization = organizationMapper.toOrganizationFromCreateOrganizationRequest(request);
@@ -66,29 +70,47 @@ public class OrganizationService {
     @Transactional
     public OrganizationResponse updateOrganization(UUID id, UpdateOrganizationRequest request) {
         Organization organization = organizationRepository.findByIdAndActiveTrue(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found", ErrorCode.ORGANIZATION_NOT_FOUND));
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found",
+                        ErrorCode.ORGANIZATION_NOT_FOUND));
 
-        User requestingUser = userRepository.findById(getCurrentUserId())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.USER_NOT_FOUND));
+        User requestingUser = getCurrentUser();
 
         if (requestingUser.getRole() == Role.ORG_ADMIN) {
             if (requestingUser.getOrganization() == null) {
-                throw new ForbiddenException("Operation not permitted: Missing organization context.", ErrorCode.FORBIDDEN);
+                throw new ForbiddenException("Operation not permitted: Missing organization context.",
+                        ErrorCode.FORBIDDEN);
             }
 
             if (!requestingUser.getOrganization().getId().equals(organization.getId())) {
-                throw new ForbiddenException("You cannot modify organizations outside your context.", ErrorCode.FORBIDDEN);
+                throw new ForbiddenException("You cannot modify organizations outside your context.",
+                        ErrorCode.FORBIDDEN);
             }
         }
 
-        // Check if they are trying to rename to a name that already exists (and isn't their own)
-        if (!organization.getName().equalsIgnoreCase(request.getName()) && 
-            organizationRepository.existsByNameAndActiveTrue(request.getName())) {
-            throw new DuplicateResourceException("An organization with this name already exists.", ErrorCode.DUPLICATE_ORGANIZATION_NAME);
+        // Check if they are trying to rename to a name that already exists (and isn't
+        // their own)
+        if (!organization.getName().equalsIgnoreCase(request.getName()) &&
+                organizationRepository.existsByNameAndActiveTrue(request.getName())) {
+            throw new DuplicateResourceException("An organization with this name already exists.",
+                    ErrorCode.DUPLICATE_ORGANIZATION_NAME);
         }
+
+        java.util.Set<com.bookfair.backend.model.Organization.OrganizationCapability> oldCapabilities = new java.util.HashSet<>(organization.getCapabilities());
 
         organizationMapper.updateOrganizationFromOrganizationRequest(request, organization);
         Organization updatedOrganization = organizationRepository.save(organization);
+
+        // We check for equality before publishing to avoid unnecessary events.
+        // Firing events on every update (even when capabilities didn't change) creates unnecessary processing overhead
+        // and could trigger unintended side effects.
+        if (!oldCapabilities.equals(organization.getCapabilities())) {
+            applicationEventPublisher.publishEvent(
+                    new com.bookfair.backend.event.OrganizationCapabilityChangedEvent(
+                            organization.getId(),
+                            organization.getCapabilities()
+                    )
+            );
+        }
 
         return organizationMapper.toOrganizationResponse(updatedOrganization);
     }
@@ -96,28 +118,26 @@ public class OrganizationService {
     @Transactional
     public void deactivateOrganization(UUID id) {
         Organization organization = organizationRepository.findByIdAndActiveTrue(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found", ErrorCode.ORGANIZATION_NOT_FOUND));
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found",
+                        ErrorCode.ORGANIZATION_NOT_FOUND));
 
-        User requestingUser = userRepository.findById(getCurrentUserId())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.USER_NOT_FOUND));
+        User requestingUser = getCurrentUser();
 
         if (requestingUser.getRole() == Role.ORG_ADMIN) {
             if (requestingUser.getOrganization() == null) {
-                throw new ForbiddenException("Operation not permitted: Missing organization context.", ErrorCode.FORBIDDEN);
+                throw new ForbiddenException("Operation not permitted: Missing organization context.",
+                        ErrorCode.FORBIDDEN);
             }
 
             if (!requestingUser.getOrganization().getId().equals(organization.getId())) {
-                throw new ForbiddenException("You cannot deactivate organizations outside your context.", ErrorCode.FORBIDDEN);
+                throw new ForbiddenException("You cannot deactivate organizations outside your context.",
+                        ErrorCode.FORBIDDEN);
             }
         }
 
-        organization.setActive(false);
-        organization.setDeletionAudit(new DeletionAudit(LocalDateTime.now(), getCurrentUserId()));
-        
-        organizationRepository.save(organization);
+        softDelete(organization);
 
-        // Note: In a fully fleshed-out system, you might also want to publish an event here 
-        // to deactivate all Users associated with this organization.
+        publishOrganizationDeactivatedEvent(organization.getId());
     }
 
     private UUID getCurrentUserId() {
@@ -128,5 +148,28 @@ public class OrganizationService {
         }
 
         throw new BusinessException("Unable to resolve current user", ErrorCode.UNAUTHORIZED);
+    }
+
+    // Centralizing current-user retrieval improves maintainability by eliminating duplicate code
+    // across the service methods. It also ensures consistent error handling if the current user cannot be found.
+    private User getCurrentUser() {
+        return userRepository.findById(getCurrentUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.USER_NOT_FOUND));
+    }
+
+    // Soft-delete logic is extracted to a single place to ensure consistency.
+    // If the audit details or active flag logic change in the future, only this method needs updating.
+    private void softDelete(Organization organization) {
+        organization.setActive(false);
+        organization.setDeletionAudit(new DeletionAudit(LocalDateTime.now(), getCurrentUserId()));
+        organizationRepository.save(organization);
+    }
+
+    // Events are used to avoid direct service coupling. This allows other parts of the system 
+    // (like listeners) to react to organization deactivation without tightly coupling the 
+    // OrganizationService to User or Cache services.
+    private void publishOrganizationDeactivatedEvent(UUID organizationId) {
+        applicationEventPublisher.publishEvent(
+                new com.bookfair.backend.event.OrganizationDeactivatedEvent(organizationId));
     }
 }

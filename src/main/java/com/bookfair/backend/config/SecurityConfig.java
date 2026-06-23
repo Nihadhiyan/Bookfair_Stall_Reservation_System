@@ -1,6 +1,5 @@
 package com.bookfair.backend.config;
 
-
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -33,6 +32,7 @@ public class SecurityConfig {
     private final UserDetailsService userDetailsService;
     private final JwtAuthenticationFilter jwtFilter;
     private final JwtAuthEntryPoint authEntryPoint;
+    private final RateLimitingFilter rateLimitingFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -42,12 +42,12 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(authEntryPoint))
                 .authorizeHttpRequests(request -> request
-                    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                    .requestMatchers("/api/v1/auth/**").permitAll()
-                    .anyRequest().authenticated())
-                .sessionManagement(session -> 
-                    session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/api/v1/auth/**").permitAll()
+                        .anyRequest().authenticated())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(rateLimitingFilter, JwtAuthenticationFilter.class)
                 .build();
     }
 
@@ -59,7 +59,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception{
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
 

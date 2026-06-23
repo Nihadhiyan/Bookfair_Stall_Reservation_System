@@ -1,5 +1,6 @@
 package com.bookfair.backend.service;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.context.ApplicationEventPublisher;
@@ -10,8 +11,11 @@ import com.bookfair.backend.dto.payment.mapper.PaymentMapper;
 import com.bookfair.backend.dto.payment.request.CreatePaymentRequest;
 import com.bookfair.backend.dto.payment.response.PaymentResponse;
 import com.bookfair.backend.event.payment.PaymentCompletedEvent;
+import com.bookfair.backend.exception.BusinessException;
 import com.bookfair.backend.exception.ErrorCode;
 import com.bookfair.backend.exception.ResourceNotFoundException;
+import com.bookfair.backend.integration.payment.gateways.PaymentGateway;
+import com.bookfair.backend.integration.payment.gateways.PaymentGateway.PaymentWebhookResult;
 import com.bookfair.backend.model.Payment;
 import com.bookfair.backend.model.Reservation;
 import com.bookfair.backend.repository.PaymentRepository;
@@ -28,36 +32,62 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final ReservationRepository reservationRepository;
     private final PaymentMapper paymentMapper;
+    private final List<PaymentGateway> paymentGateways;
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
-    public PaymentResponse initializePayment(CreatePaymentRequest request) {
+    public PaymentResponse initializePayment(CreatePaymentRequest request, String gatewayType) {
         Reservation reservation = reservationRepository.findById(request.getReservationId())
-                .orElseThrow(() -> new ResourceNotFoundException("Reservation not found", ErrorCode.RESERVATION_NOT_FOUND));
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Reservation not found", ErrorCode.RESERVATION_NOT_FOUND));
+
+        PaymentGateway adapter = paymentGateways.stream()
+                .filter(gateway -> gateway.supports(gatewayType))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException("Unsupported payment gateway: " + gatewayType, ErrorCode.BUSINESS_RULE_VIOLATION));
+
+        PaymentResponse response = adapter.initializePayment(request);
 
         Payment payment = new Payment();
         payment.setReservation(reservation);
         payment.setAmount(request.getAmount());
         payment.setStatus(Payment.PaymentStatus.PENDING);
+        payment.setTransactionId(response.getTransactionId());
 
         Payment saved = paymentRepository.save(payment);
-        log.info("Initialized payment for reservation {}", reservation.getId());
+        log.info("Initialized payment for reservation {} via {}", reservation.getId(), gatewayType);
 
         return paymentMapper.toPaymentResponse(saved);
     }
 
     @Transactional
-    public void processWebhook(CreatePaymentRequest request) {
-        // Validate payload and extract transaction state
-        Reservation reservation = reservationRepository.findById(request.getReservationId())
-                .orElseThrow(() -> new ResourceNotFoundException("Reservation not found", ErrorCode.RESERVATION_NOT_FOUND));
+    public void processWebhook(String payload, String signatureHeader, String gatewayType) {
+        PaymentGateway adapter = paymentGateways.stream()
+                .filter(gateway -> gateway.supports(gatewayType))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException("Unsupported payment gateway: " + gatewayType, ErrorCode.BUSINESS_RULE_VIOLATION));
 
-        Payment payment = new Payment();
-        payment.setReservation(reservation);
-        payment.setStripeChargeId(request.getStripeChargeId());
-        payment.setAmount(request.getAmount());
-        
-        Payment.PaymentStatus status = Payment.PaymentStatus.valueOf(request.getStatus().toUpperCase());
+        PaymentWebhookResult result = adapter.processWebhook(payload, signatureHeader);
+
+        if (!result.isValid() || result.transactionId() == null) {
+            log.warn("Ignored or invalid webhook from gateway {}", gatewayType);
+            return;
+        }
+
+        Payment payment = paymentRepository.findByTransactionId(result.transactionId())
+                .orElseGet(() -> {
+                    // Fallback to searching by reservationId if transaction ID wasn't saved yet
+                    Reservation reservation = reservationRepository.findById(result.reservationId())
+                            .orElseThrow(() -> new ResourceNotFoundException("Reservation not found", ErrorCode.RESERVATION_NOT_FOUND));
+                    
+                    Payment newPayment = new Payment();
+                    newPayment.setReservation(reservation);
+                    newPayment.setTransactionId(result.transactionId());
+                    newPayment.setAmount(result.amount());
+                    return newPayment;
+                });
+
+        Payment.PaymentStatus status = Payment.PaymentStatus.valueOf(result.paymentStatus().toUpperCase());
         payment.setStatus(status);
 
         Payment saved = paymentRepository.save(payment);
@@ -65,17 +95,17 @@ public class PaymentService {
 
         if (status == Payment.PaymentStatus.COMPLETED) {
             eventPublisher.publishEvent(new PaymentCompletedEvent(
-                    reservation.getId(),
-                    saved.getStripeChargeId(),
-                    saved.getAmount()
-            ));
+                    payment.getReservation().getId(),
+                    saved.getTransactionId(),
+                    saved.getAmount()));
         }
     }
 
     @Transactional(readOnly = true)
     public PaymentResponse getPaymentStatus(UUID transactionId) {
         Payment payment = paymentRepository.findById(transactionId)
-                .orElseThrow(() -> new ResourceNotFoundException("Payment not found", ErrorCode.BUSINESS_RULE_VIOLATION));
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Payment not found", ErrorCode.BUSINESS_RULE_VIOLATION));
 
         return paymentMapper.toPaymentResponse(payment);
     }

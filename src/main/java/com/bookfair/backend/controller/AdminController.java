@@ -1,5 +1,10 @@
 package com.bookfair.backend.controller;
 
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bookfair.backend.dto.admin.response.AdminDashboardResponse;
@@ -7,21 +12,22 @@ import com.bookfair.backend.service.AdminService;
 
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-
-
-
 @RestController
-@RequiredArgsConstructor
 @RequestMapping("/api/v1/admin")
-public class AdminController {  
+@RequiredArgsConstructor
+@PreAuthorize("hasRole('SUPER_ADMIN')")
+public class AdminController {
+
     private final AdminService adminService;
 
-    @GetMapping("/dashboard")
-    public ResponseEntity<AdminDashboardResponse> getDashboardStats() {
-        return ResponseEntity.ok(adminService.getDashboardStats());
+    @GetMapping("/metrics/dashboard")
+    public ResponseEntity<AdminDashboardResponse> getDashboardMetrics() {
+        return ResponseEntity.ok(adminService.getDashboardMetrics());
     }
-    
+
+    @PostMapping("/system/maintenance")
+    public ResponseEntity<String> toggleMaintenanceMode() {
+        adminService.toggleMaintenanceMode();
+        return ResponseEntity.ok("Maintenance mode is now: " + adminService.isMaintenanceMode());
+    }
 }

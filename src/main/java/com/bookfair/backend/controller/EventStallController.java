@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.bookfair.backend.dto.ApiResponseDto;
+import com.bookfair.backend.dto.common.ApiResponseDto;
 import com.bookfair.backend.dto.event.request.CreateEventStallRequest;
 import com.bookfair.backend.dto.event.response.EventStallResponse;
 import com.bookfair.backend.service.EventStallService;

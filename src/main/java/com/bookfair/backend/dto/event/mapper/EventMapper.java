@@ -17,6 +17,8 @@ import com.bookfair.backend.model.EventStall;
 public interface EventMapper {
     EventResponse toEventResponse(Event event);
 
+    @org.mapstruct.Mapping(source = "stallNameAtCreation", target = "stallName")
+    @org.mapstruct.Mapping(source = "hallNameAtCreation", target = "hallName")
     EventStallResponse toEventStallResponse(EventStall eventStall);
 
     EventSummaryResponse toEventSummaryResponse(Event event);

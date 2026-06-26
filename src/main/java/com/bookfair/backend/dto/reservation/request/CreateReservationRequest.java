@@ -32,4 +32,7 @@ public class CreateReservationRequest {
     @NotNull(message = "Genre id is required")
     private UUID genreId;
 
+    @NotNull(message = "Organization id is required")
+    private UUID organizationId;
+
 }

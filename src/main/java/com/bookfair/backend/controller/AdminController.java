@@ -20,11 +20,13 @@ public class AdminController {
 
     private final AdminService adminService;
 
-    @GetMapping("/metrics/dashboard")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('ORG_ADMIN')")
+    @GetMapping("/dashboard")
     public ResponseEntity<AdminDashboardResponse> getDashboardMetrics() {
-        return ResponseEntity.ok(adminService.getDashboardMetrics());
+        return ResponseEntity.ok(adminService.getDashboardStats());
     }
 
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     @PostMapping("/system/maintenance")
     public ResponseEntity<String> toggleMaintenanceMode() {
         adminService.toggleMaintenanceMode();

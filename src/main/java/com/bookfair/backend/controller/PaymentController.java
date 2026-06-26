@@ -29,13 +29,13 @@ public class PaymentController {
     @PostMapping("/initialize")
     @PreAuthorize("hasAnyRole('USER', 'ORG_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<PaymentResponse> initializePayment(@Valid @RequestBody CreatePaymentRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(paymentService.initializePayment(request));
+        return ResponseEntity.status(HttpStatus.CREATED).body(paymentService.initializePayment(request, "STRIPE"));
     }
 
     @PostMapping("/webhook")
     @PreAuthorize("permitAll()")
-    public ResponseEntity<Void> processWebhook(@RequestBody CreatePaymentRequest request) {
-        paymentService.processWebhook(request);
+    public ResponseEntity<Void> processWebhook(@RequestBody String payload, @org.springframework.web.bind.annotation.RequestHeader("Stripe-Signature") String signature) {
+        paymentService.processWebhook(payload, signature, "STRIPE");
         return ResponseEntity.ok().build();
     }
 

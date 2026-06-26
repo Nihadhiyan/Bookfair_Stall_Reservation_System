@@ -16,7 +16,7 @@ public class PricingRuleResponse {
     private UUID id;
     private String name;
     private String description;
-    private String conditionType;
+    private com.bookfair.backend.model.PricingRule.ConditionType conditionType;
     private String conditionValue;
     private BigDecimal multiplier;
     private Boolean active;

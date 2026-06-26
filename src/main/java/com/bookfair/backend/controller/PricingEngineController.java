@@ -27,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 public class PricingEngineController {
 
     private final PricingEngineService pricingEngineService;
+    private final com.bookfair.backend.service.PricingRuleService pricingRuleService;
 
     @GetMapping("/quote")
     @PreAuthorize("hasAnyRole('USER', 'ORG_ADMIN', 'SUPER_ADMIN')")
@@ -40,12 +41,12 @@ public class PricingEngineController {
     @GetMapping("/rules")
     @PreAuthorize("hasAnyRole('USER', 'ORG_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<List<PricingRuleResponse>> viewActiveRules() {
-        return ResponseEntity.ok(pricingEngineService.getActiveRules());
+        return ResponseEntity.ok(pricingRuleService.getActiveRules());
     }
 
     @PostMapping("/rules")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<PricingRuleResponse> addPricingRule(@Valid @RequestBody PricingRuleRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(pricingEngineService.createPricingRule(request));
+        return ResponseEntity.status(HttpStatus.CREATED).body(pricingRuleService.createPricingRule(request));
     }
 }

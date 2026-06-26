@@ -17,15 +17,8 @@ public class PaymentResponse {
     private String stripeChargeId;
     private BigDecimal amount;
     private String status;
-
-
-
-
-
-
-
-
-
-
+    private String gateway;
+    private String transactionId;
+    private String paymentUrl;
 
 }

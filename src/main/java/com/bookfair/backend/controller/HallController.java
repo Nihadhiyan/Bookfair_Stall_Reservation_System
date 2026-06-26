@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.bookfair.backend.dto.ApiResponseDto;
+import com.bookfair.backend.dto.common.ApiResponseDto;
 import com.bookfair.backend.dto.hall.request.CreateHallRequest;
 import com.bookfair.backend.dto.hall.request.UpdateHallRequest;
 import com.bookfair.backend.dto.hall.response.HallLayoutResponse;

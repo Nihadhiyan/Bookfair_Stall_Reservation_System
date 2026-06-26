@@ -1,6 +1,6 @@
 package com.bookfair.backend.dto.user.request;
 
-import com.bookfair.backend.model.User.Role;
+import com.bookfair.backend.model.SystemRole;
 
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -15,6 +15,6 @@ import lombok.Setter;
 public class UpdateUserRoleRequest {
 
     @NotNull(message = "Role is required")
-    private Role role;
+    private SystemRole role;
 
 }

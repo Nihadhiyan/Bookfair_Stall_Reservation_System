@@ -2,6 +2,8 @@ package com.bookfair.backend.dto.pricing.request;
 
 import java.math.BigDecimal;
 
+import com.bookfair.backend.model.PricingRule.ConditionType;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -21,7 +23,7 @@ public class PricingRuleRequest {
     private String description;
 
     @NotBlank
-    private String conditionType;
+    private ConditionType conditionType;
 
     @NotBlank
     private String conditionValue;

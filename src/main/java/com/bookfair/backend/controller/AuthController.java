@@ -35,32 +35,32 @@ public class AuthController {
     public ResponseEntity<ApiResponseDto<AuthResponse>> register(@Valid @RequestBody RegisterRequest registerRequest) {
         AuthResponse data = authService.register(registerRequest);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new ApiResponseDto<>(true, "Registration successful", data, LocalDateTime.now()));
+                .body(new ApiResponseDto<AuthResponse>(true, "Registration successful", data, LocalDateTime.now()));
     }
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponseDto<AuthResponse>> login(@Valid @RequestBody LoginRequest loginRequest) {
         AuthResponse data = authService.login(loginRequest);
-        return ResponseEntity.ok(new ApiResponseDto<>(true, "Login successful", data, LocalDateTime.now()));
+        return ResponseEntity.ok(new ApiResponseDto<AuthResponse>(true, "Login successful", data, LocalDateTime.now()));
     }
 
     @PostMapping("/logout")
     public ResponseEntity<ApiResponseDto<Void>> logout(HttpServletRequest request) {
         authService.logout(request.getHeader("Authorization"));
-        return ResponseEntity.ok(new ApiResponseDto<>(true, "Successfully logged out", null, LocalDateTime.now()));
+        return ResponseEntity.ok(new ApiResponseDto<Void>(true, "Successfully logged out", null, LocalDateTime.now()));
     }
 
     @PostMapping("/refresh-token")
     public ResponseEntity<ApiResponseDto<AuthResponse>> refreshToken(
             @Valid @RequestBody RefreshTokenRequest refreshTokenRequest) {
         AuthResponse data = authService.refreshToken(refreshTokenRequest);
-        return ResponseEntity.ok(new ApiResponseDto<>(true, "Token refreshed successfully", data, LocalDateTime.now()));
+        return ResponseEntity.ok(new ApiResponseDto<AuthResponse>(true, "Token refreshed successfully", data, LocalDateTime.now()));
     }
 
     @PostMapping("/forgot-password")
     public ResponseEntity<ApiResponseDto<Void>> forgotPassword(@RequestParam("email") String email) {
         authService.forgotPassword(email);
-        return ResponseEntity.ok(new ApiResponseDto<>(true,
+        return ResponseEntity.ok(new ApiResponseDto<Void>(true,
                 "If an account with that email exists, a reset link has been sent.", null, LocalDateTime.now()));
     }
 
@@ -68,26 +68,26 @@ public class AuthController {
     public ResponseEntity<ApiResponseDto<Void>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         authService.resetPassword(request);
         return ResponseEntity
-                .ok(new ApiResponseDto<>(true, "Password has been successfully reset.", null, LocalDateTime.now()));
+                .ok(new ApiResponseDto<Void>(true, "Password has been successfully reset.", null, LocalDateTime.now()));
     }
 
     @PostMapping("/change-password")
     public ResponseEntity<ApiResponseDto<Void>> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
         authService.changePassword(request);
         return ResponseEntity
-                .ok(new ApiResponseDto<>(true, "Password successfully updated.", null, LocalDateTime.now()));
+                .ok(new ApiResponseDto<Void>(true, "Password successfully updated.", null, LocalDateTime.now()));
     }
 
     @PostMapping("/verify-email")
     public ResponseEntity<ApiResponseDto<Void>> verifyEmail(@Valid @RequestBody VerifyEmailRequest verifyEmailRequest) {
         authService.verifyEmail(verifyEmailRequest);
-        return ResponseEntity.ok(new ApiResponseDto<>(true, "Email successfully verified. You may now log in.", null,
+        return ResponseEntity.ok(new ApiResponseDto<Void>(true, "Email successfully verified. You may now log in.", null,
                 LocalDateTime.now()));
     }
 
     @PostMapping("/send-verification")
     public ResponseEntity<ApiResponseDto<Void>> sendVerification(@RequestParam("email") String email) {
         authService.sendVerificationEmail(email);
-        return ResponseEntity.ok(new ApiResponseDto<>(true, "Verification email sent.", null, LocalDateTime.now()));
+        return ResponseEntity.ok(new ApiResponseDto<Void>(true, "Verification email sent.", null, LocalDateTime.now()));
     }
 }

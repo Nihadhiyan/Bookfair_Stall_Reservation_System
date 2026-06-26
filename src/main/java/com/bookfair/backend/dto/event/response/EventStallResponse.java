@@ -7,6 +7,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import com.bookfair.backend.dto.common.LayoutPositionDto;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -20,21 +22,6 @@ public class EventStallResponse {
     private BigDecimal basePrice;
     private BigDecimal manualOverridePrice;
     private String status;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    private LayoutPositionDto layout;
 
 }

@@ -1,4 +1,4 @@
-package com.bookfair.backend.event;
+package com.bookfair.backend.event.user;
 
 import java.util.UUID;
 
@@ -30,5 +30,5 @@ import java.util.UUID;
  */
 public record UserUpdatedEvent(
         UUID userId,
-        String username) implements UserEvent {
+        String username, String email) implements UserEvent {
 }

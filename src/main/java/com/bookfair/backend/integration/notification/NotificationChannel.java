@@ -1,4 +1,4 @@
-package com.bookfair.backend.service;
+package com.bookfair.backend.integration.notification;
 
 import java.util.Map;
 

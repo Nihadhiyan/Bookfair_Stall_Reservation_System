@@ -1,7 +1,6 @@
 package com.bookfair.backend.event.reservation;
 
 import java.util.UUID;
-import com.bookfair.backend.event.user.UserEvent;
 
-public record ReservationRefundPendingEvent(UUID userId, String eventName) implements UserEvent {
+public record ReservationRefundPendingEvent(UUID userId, String username, String email, UUID reservationId, String eventName) implements ReservationEvent {
 }

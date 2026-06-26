@@ -1,4 +1,4 @@
-package com.bookfair.backend.event;
+package com.bookfair.backend.event.organization;
 
 import java.util.UUID;
 

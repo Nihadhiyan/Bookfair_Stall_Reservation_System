@@ -17,14 +17,17 @@ import com.bookfair.backend.security.CustomUserPrincipal;
 public class AuditConfig {
 
     public static final UUID SYSTEM_USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000000");
-    
+
     @Bean
     public AuditorAware<UUID> auditorProvider() {
         return () -> {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-            if(authentication == null || !authentication.isAuthenticated() || authentication.getPrincipal().equals("anonymousUser")) {
-                return Optional.of(SYSTEM_USER_ID);
+            if (authentication == null || !authentication.isAuthenticated()
+                    || authentication.getPrincipal().equals("anonymousUser")) {
+                if (SYSTEM_USER_ID != null) {
+                    return Optional.of(SYSTEM_USER_ID);
+                }
             }
 
             Object principal = authentication.getPrincipal();

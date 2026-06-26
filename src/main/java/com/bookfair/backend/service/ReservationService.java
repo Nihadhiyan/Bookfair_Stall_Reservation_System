@@ -27,6 +27,10 @@ import com.bookfair.backend.repository.EventStallRepository;
 import com.bookfair.backend.repository.GenreRepository;
 import com.bookfair.backend.repository.ReservationRepository;
 import com.bookfair.backend.repository.UserRepository;
+import com.bookfair.backend.repository.OrganizationMemberRepository;
+import com.bookfair.backend.repository.OrganizationRepository;
+import com.bookfair.backend.model.Organization;
+
 import com.bookfair.backend.security.CustomUserPrincipal;
 
 import lombok.RequiredArgsConstructor;
@@ -38,12 +42,11 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import static java.util.Objects.requireNonNull;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -52,6 +55,8 @@ public class ReservationService {
 
     private final ReservationRepository reservationRepository;
     private final UserRepository userRepository;
+    private final OrganizationMemberRepository memberRepository;
+    private final OrganizationRepository organizationRepository;
     private final EventStallRepository eventStallRepository;
     private final EventRepository eventRepository;
     private final QRService qrCodeService;
@@ -73,6 +78,7 @@ public class ReservationService {
 
     @Transactional
     public ReservationResponse createReservation(CreateReservationRequest request) {
+        requireNonNull(request, "request cannot be null");
         User user = userRepository.findByIdAndActiveTrue(getCurrentUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.USER_NOT_FOUND));
 
@@ -82,8 +88,11 @@ public class ReservationService {
         Genre genre = genreRepository.findByIdAndActiveTrue(request.getGenreId())
                 .orElseThrow(() -> new ResourceNotFoundException("Genre not found", ErrorCode.GENRE_NOT_FOUND));
 
-        if (user.getOrganization() == null) {
-            throw new BusinessException("User must belong to an organization to make a reservation.",
+        Organization organization = organizationRepository.findById(request.getOrganizationId())
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found", ErrorCode.ORGANIZATION_NOT_FOUND));
+
+        if (!memberRepository.existsByUserIdAndOrganizationId(user.getId(), organization.getId())) {
+            throw new BusinessException("User must belong to the organization to make a reservation on its behalf.",
                     ErrorCode.BUSINESS_RULE_VIOLATION);
         }
 
@@ -109,7 +118,7 @@ public class ReservationService {
 
         Reservation reservation = new Reservation();
         reservation.setUser(user);
-        reservation.setOrganization(user.getOrganization());
+        reservation.setOrganization(organization);
         reservation.setReservationCreatedBy(user);
         reservation.setEvent(event);
         reservation.setGenre(genre);
@@ -145,7 +154,8 @@ public class ReservationService {
         eventStallRepository.saveAll(stalls);
         Reservation savedReservation = reservationRepository.save(reservation);
 
-        eventPublisher.publishEvent(new ReservationRequestReceivedEvent(user.getId(), event.getName()));
+        eventPublisher.publishEvent(new ReservationRequestReceivedEvent(user.getId(), user.getUsername(),
+                user.getEmail(), savedReservation.getId(), event.getName()));
 
         return reservationMapper.toReservationResponse(savedReservation);
     }
@@ -182,7 +192,9 @@ public class ReservationService {
 
         reservationRepository.save(reservation);
 
-        eventPublisher.publishEvent(new ReservationConfirmedEvent(reservation.getUser().getId(), reservation.getEvent().getName(), qrCodeImage));
+        eventPublisher.publishEvent(new ReservationConfirmedEvent(reservation.getUser().getId(),
+                reservation.getUser().getUsername(), reservation.getUser().getEmail(), reservation.getId(),
+                reservation.getEvent().getName(), qrCodeImage));
     }
 
     @Transactional
@@ -207,7 +219,9 @@ public class ReservationService {
         reservation.setStatus(ReservationStatus.REFUND_PENDING);
         reservationRepository.save(reservation);
 
-        eventPublisher.publishEvent(new ReservationRefundPendingEvent(reservation.getUser().getId(), reservation.getEvent().getName()));
+        eventPublisher.publishEvent(
+                new ReservationRefundPendingEvent(reservation.getUser().getId(), reservation.getUser().getUsername(),
+                        reservation.getUser().getEmail(), reservation.getId(), reservation.getEvent().getName()));
     }
 
     @Transactional
@@ -234,7 +248,9 @@ public class ReservationService {
 
         reservationRepository.save(reservation);
 
-        eventPublisher.publishEvent(new ReservationRefundedEvent(reservation.getUser().getId(), reservation.getEvent().getName()));
+        eventPublisher.publishEvent(
+                new ReservationRefundedEvent(reservation.getUser().getId(), reservation.getUser().getUsername(),
+                        reservation.getUser().getEmail(), reservation.getId(), reservation.getEvent().getName()));
     }
 
     @Transactional(readOnly = true)

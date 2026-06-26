@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import com.bookfair.backend.dto.payment.request.CreatePaymentRequest;
 import com.bookfair.backend.dto.payment.response.PaymentResponse;
+import com.bookfair.backend.integration.payment.PaymentGateway;
 import com.stripe.Stripe;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.exception.StripeException;
@@ -56,8 +57,7 @@ public class StripePaymentGateway implements PaymentGateway {
                     .setMode(SessionCreateParams.Mode.PAYMENT)
                     .setSuccessUrl("http://localhost:5173/booking-success?session_id={CHECKOUT_SESSION_ID}")
                     .setCancelUrl("http://localhost:5173/booking-cancel")
-                    .setPaymentMethodTypes(Arrays.asList(SessionCreateParams.PaymentMethodType.CARD))
-                    .setLineItems(lineItems)
+                    .addAllLineItem(lineItems)
                     .putMetadata("reservationId", request.getReservationId().toString())
                     .build();
 
@@ -87,7 +87,7 @@ public class StripePaymentGateway implements PaymentGateway {
             if ("checkout.session.completed".equals(event.getType())) {
                 EventDataObjectDeserializer dataObjectDeserializer = event.getDataObjectDeserializer();
                 if (dataObjectDeserializer.getObject().isPresent()) {
-                    StripeObject stripeObject = dataObjectDeserializer.getObject().get();
+                    StripeObject stripeObject = dataObjectDeserializer.getObject().orElseThrow(() -> new IllegalStateException("Deserialized object missing"));
                     if (stripeObject instanceof Session session) {
                         UUID reservationId = UUID.fromString(session.getMetadata().get("reservationId"));
                         BigDecimal amount = BigDecimal.valueOf(session.getAmountTotal()).divide(BigDecimal.valueOf(100));

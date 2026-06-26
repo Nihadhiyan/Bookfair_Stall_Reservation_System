@@ -10,6 +10,9 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+
+import com.bookfair.backend.exception.ErrorCode;
 
 import com.bookfair.backend.dto.common.ErrorResponse;
 
@@ -23,16 +26,18 @@ public class GlobalExceptionHandler {
 
         @ExceptionHandler(BaseException.class)
         public ResponseEntity<ErrorResponse> handleBaseException(BaseException ex) {
+                HttpStatus status = ex.getStatus() != null ? ex.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
+                ErrorCode errorCode = ex.getErrorCode() != null ? ex.getErrorCode() : ErrorCode.INTERNAL_SERVER_ERROR;
 
-                if(ex.getStatus().is5xxServerError()) {
-                        log.error("Server Error [{}]: {}", ex.getErrorCode(), ex.getMessage(), ex);
+                if (status.is5xxServerError()) {
+                        log.error("Server Error [{}]: {}", errorCode, ex.getMessage(), ex);
                 } else {
-                        log.warn("Business Exception [{}]: {}", ex.getErrorCode(), ex.getMessage());
+                        log.warn("Business Exception [{}]: {}", errorCode, ex.getMessage());
                 }
 
                 return ResponseEntity
-                        .status(ex.getStatus())
-                        .body(ErrorResponse.build(ex.getStatus(), ex.getMessage(), null, ex.getErrorCode()));
+                                .status(status)
+                                .body(ErrorResponse.build(status, ex.getMessage(), null, errorCode));
         }
 
         @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -47,7 +52,32 @@ public class GlobalExceptionHandler {
                 log.warn("Validation failed: {}", errors);
 
                 return ResponseEntity.badRequest()
-                                .body(ErrorResponse.build(HttpStatus.BAD_REQUEST, "Validation failed", errors, ErrorCode.VALIDATION_ERROR));
+                                .body(ErrorResponse.build(HttpStatus.BAD_REQUEST, "Validation failed", errors,
+                                                ErrorCode.VALIDATION_ERROR));
+        }
+
+        @ExceptionHandler({NullPointerException.class, IllegalArgumentException.class})
+        public ResponseEntity<ErrorResponse> handleValidationExceptions(RuntimeException ex) {
+                // We log this as a WARN, not an ERROR, because it's a bad client request, not a
+                // server failure.
+                log.warn("Validation Error (Fail-Fast): {}", ex.getMessage());
+
+                return ResponseEntity
+                                .status(HttpStatus.BAD_REQUEST)
+                                .body(ErrorResponse.build(
+                                                HttpStatus.BAD_REQUEST,
+                                                ex.getMessage() != null ? ex.getMessage() : "Invalid input provided",
+                                                null,
+                                                ErrorCode.VALIDATION_ERROR));
+        }
+
+        @ExceptionHandler(MissingServletRequestParameterException.class)
+        public ResponseEntity<ErrorResponse> handleMissingParams(MissingServletRequestParameterException ex) {
+                log.warn("Missing request parameter: {}", ex.getParameterName());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                                .body(ErrorResponse.build(HttpStatus.BAD_REQUEST,
+                                                "Missing required parameter: " + ex.getParameterName(), null,
+                                                ErrorCode.VALIDATION_ERROR));
         }
 
         @ExceptionHandler(ConstraintViolationException.class)
@@ -61,7 +91,8 @@ public class GlobalExceptionHandler {
                 log.warn("Constraint validation failed: {}", errors);
 
                 return ResponseEntity.badRequest()
-                                .body(ErrorResponse.build(HttpStatus.BAD_REQUEST, "Validation failed", errors, ErrorCode.VALIDATION_ERROR));
+                                .body(ErrorResponse.build(HttpStatus.BAD_REQUEST, "Validation failed", errors,
+                                                ErrorCode.VALIDATION_ERROR));
         }
 
         @ExceptionHandler(AuthenticationException.class)
@@ -70,7 +101,8 @@ public class GlobalExceptionHandler {
                 log.warn("Authentication failed: {}", ex.getMessage());
 
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                                .body(ErrorResponse.build(HttpStatus.UNAUTHORIZED, "Authentication failed", null, ErrorCode.UNAUTHORIZED));
+                                .body(ErrorResponse.build(HttpStatus.UNAUTHORIZED, "Authentication failed", null,
+                                                ErrorCode.UNAUTHORIZED));
         }
 
         @ExceptionHandler(AccessDeniedException.class)
@@ -79,7 +111,8 @@ public class GlobalExceptionHandler {
                 log.warn("Access denied: {}", ex.getMessage());
 
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                                .body(ErrorResponse.build(HttpStatus.FORBIDDEN, "Access denied", null, ErrorCode.FORBIDDEN));
+                                .body(ErrorResponse.build(HttpStatus.FORBIDDEN, "Access denied", null,
+                                                ErrorCode.FORBIDDEN));
         }
 
         @ExceptionHandler(DataIntegrityViolationException.class)
@@ -88,7 +121,8 @@ public class GlobalExceptionHandler {
                 log.error("Database constraint violation: {}", ex.getMessage(), ex);
 
                 return ResponseEntity.status(HttpStatus.CONFLICT)
-                                .body(ErrorResponse.build(HttpStatus.CONFLICT, "Database constraint violation", null, ErrorCode.DATABASE_ERROR));
+                                .body(ErrorResponse.build(HttpStatus.CONFLICT, "Database constraint violation", null,
+                                                ErrorCode.DATABASE_ERROR));
         }
 
         @ExceptionHandler(IllegalStateException.class)
@@ -97,7 +131,8 @@ public class GlobalExceptionHandler {
                 log.warn("Illegal state encountered: {}", ex.getMessage());
 
                 return ResponseEntity.status(HttpStatus.CONFLICT)
-                                .body(ErrorResponse.build(HttpStatus.CONFLICT, ex.getMessage(), null, ErrorCode.BUSINESS_RULE_VIOLATION));
+                                .body(ErrorResponse.build(HttpStatus.CONFLICT, ex.getMessage(), null,
+                                                ErrorCode.BUSINESS_RULE_VIOLATION));
         }
 
         @ExceptionHandler(Exception.class)
@@ -106,6 +141,7 @@ public class GlobalExceptionHandler {
                 log.error("CRITICAL: An unexpected error occurred: {}", ex.getMessage(), ex);
 
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                                .body(ErrorResponse.build(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", null, ErrorCode.INTERNAL_SERVER_ERROR));
+                                .body(ErrorResponse.build(HttpStatus.INTERNAL_SERVER_ERROR,
+                                                "An unexpected error occurred", null, ErrorCode.INTERNAL_SERVER_ERROR));
         }
 }

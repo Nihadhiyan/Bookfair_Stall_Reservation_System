@@ -4,11 +4,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
-import com.bookfair.backend.event.OrganizationDeactivatedEvent;
+import com.bookfair.backend.event.organization.OrganizationDeactivatedEvent;
 import com.bookfair.backend.event.user.UserDeletedEvent;
 import com.bookfair.backend.event.user.UserAccountLockedEvent;
 import com.bookfair.backend.event.user.UserPasswordChangedEvent;
-import com.bookfair.backend.repository.UserRepository;
+
+import com.bookfair.backend.repository.OrganizationMemberRepository;
 import com.bookfair.backend.service.SecurityManagementService;
 
 import lombok.RequiredArgsConstructor;
@@ -19,7 +20,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class SecurityEnforcementListener {
 
-    private final UserRepository userRepository;
+
+    private final OrganizationMemberRepository memberRepository;
     private final SecurityManagementService securityManagementService;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -30,12 +32,12 @@ public class SecurityEnforcementListener {
             } else if (event instanceof UserPasswordChangedEvent e) {
                 securityManagementService.handleRevocation(e.userId());
             } else if (event instanceof OrganizationDeactivatedEvent e) {
-                userRepository.findAllByOrganizationId(e.organizationId())
-                        .forEach(u -> {
+                memberRepository.findByOrganizationId(e.organizationId())
+                        .forEach(m -> {
                             try {
-                                securityManagementService.handleRevocation(u.getId());
+                                securityManagementService.handleRevocation(m.getUser().getId());
                             } catch (Exception ex) {
-                                log.error("Failed to revoke session for user {} during organization deactivation: {}", u.getId(), ex.getMessage());
+                                log.error("Failed to revoke session for user {} during organization deactivation: {}", m.getUser().getId(), ex.getMessage());
                             }
                         });
             } else if (event instanceof UserAccountLockedEvent e) {

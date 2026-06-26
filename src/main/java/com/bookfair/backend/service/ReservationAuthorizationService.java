@@ -3,83 +3,71 @@ package com.bookfair.backend.service;
 import org.springframework.stereotype.Service;
 
 import com.bookfair.backend.model.Reservation;
+import com.bookfair.backend.model.SystemRole;
+import com.bookfair.backend.model.OrganizationRole;
+import com.bookfair.backend.model.OrganizationMember;
 import com.bookfair.backend.model.User;
-import com.bookfair.backend.model.User.Role;
+import com.bookfair.backend.repository.OrganizationMemberRepository;
 
 import lombok.RequiredArgsConstructor;
+
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class ReservationAuthorizationService {
 
-    public boolean canViewReservation(User principal, Reservation reservation) {
-        if (principal.getRole() == Role.SUPER_ADMIN) {
+    private final OrganizationMemberRepository memberRepository;
+
+    public boolean canViewReservation(User user, Reservation reservation) {
+        if (user.getSystemRole() == SystemRole.SUPER_ADMIN) {
             return true;
         }
 
-        if (principal.getRole() == Role.ORG_ADMIN || principal.getRole() == Role.ORG_EMPLOYEE) {
-            // Can view if they own the reservation OR their organization organizes the
-            // event
-            boolean isOwner = reservation.getUser().getId().equals(principal.getId());
-            boolean isEventOrganizer = principal.getOrganization() != null &&
-                    principal.getOrganization().getId().equals(reservation.getEvent().getOrganizer().getId());
-
-            return isOwner || isEventOrganizer;
+        if (reservation.getUser().getId().equals(user.getId())) {
+            return true;
         }
 
-        // CUSTOMER
-        return reservation.getUser().getId().equals(principal.getId());
+        Optional<OrganizationMember> memberOpt = memberRepository.findByUserIdAndOrganizationId(
+                user.getId(), reservation.getEvent().getOrganizer().getId());
+
+        return memberOpt.isPresent();
     }
 
-    public boolean canManageReservation(User principal, Reservation reservation) {
-        if (principal.getRole() == Role.SUPER_ADMIN) {
+    public boolean canManageReservation(User user, Reservation reservation) {
+        if (user.getSystemRole() == SystemRole.SUPER_ADMIN) {
             return true;
         }
 
-        if (principal.getRole() == Role.ORG_ADMIN) {
-            // Can cancel/manage if they own the reservation OR their organization organizes
-            // the event
-            boolean isOwner = reservation.getUser().getId().equals(principal.getId());
-            boolean isEventOrganizer = principal.getOrganization() != null &&
-                    principal.getOrganization().getId().equals(reservation.getEvent().getOrganizer().getId());
-
-            return isOwner || isEventOrganizer;
+        if (reservation.getUser().getId().equals(user.getId())) {
+            return true;
         }
 
-        if (principal.getRole() == Role.ORG_EMPLOYEE || principal.getRole() == Role.CUSTOMER) {
-            // Only can manage their own reservations
-            return reservation.getUser().getId().equals(principal.getId());
-        }
+        Optional<OrganizationMember> memberOpt = memberRepository.findByUserIdAndOrganizationId(
+                user.getId(), reservation.getEvent().getOrganizer().getId());
 
-        return false;
+        return memberOpt.map(member -> member.getRole() == OrganizationRole.ORG_ADMIN).orElse(false);
     }
 
-    public boolean canConfirmReservation(User principal, Reservation reservation) {
-        if (principal.getRole() == Role.SUPER_ADMIN) {
+    public boolean canConfirmReservation(User user, Reservation reservation) {
+        if (user.getSystemRole() == SystemRole.SUPER_ADMIN) {
             return true;
         }
 
-        if (principal.getRole() == Role.ORG_ADMIN || principal.getRole() == Role.ORG_EMPLOYEE) {
-            // Only event organizers can confirm reservations (or we can restrict to
-            // ORG_ADMIN only, but let's allow ORG_EMPLOYEE if it matches org)
-            return principal.getOrganization() != null &&
-                    principal.getOrganization().getId().equals(reservation.getEvent().getOrganizer().getId());
-        }
+        Optional<OrganizationMember> memberOpt = memberRepository.findByUserIdAndOrganizationId(
+                user.getId(), reservation.getEvent().getOrganizer().getId());
 
-        return false;
+        return memberOpt.isPresent(); // ORG_ADMIN or ORG_MEMBER can confirm
     }
 
-    public boolean canApproveRefund(User principal, Reservation reservation) {
-        if (principal.getRole() == Role.SUPER_ADMIN) {
+    public boolean canApproveRefund(User user, Reservation reservation) {
+        if (user.getSystemRole() == SystemRole.SUPER_ADMIN) {
             return true;
         }
 
-        if (principal.getRole() == Role.ORG_ADMIN) {
-            // Only ORG_ADMIN (and SUPER_ADMIN) can approve refunds for their events
-            return principal.getOrganization() != null &&
-                    principal.getOrganization().getId().equals(reservation.getEvent().getOrganizer().getId());
-        }
+        Optional<OrganizationMember> memberOpt = memberRepository.findByUserIdAndOrganizationId(
+                user.getId(), reservation.getEvent().getOrganizer().getId());
 
-        return false;
+        return memberOpt.map(member -> member.getRole() == OrganizationRole.ORG_ADMIN).orElse(false);
     }
 }

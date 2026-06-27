@@ -1,93 +1,126 @@
 package com.bookfair.backend.config.filter;
 
 import java.io.IOException;
+import java.util.Date;
+import java.util.List;
 import java.util.UUID;
-import org.springframework.security.authentication.DisabledException;
+
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
+
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.servlet.HandlerExceptionResolver;
 
-import com.bookfair.backend.security.CustomUserDetailsService;
+import com.bookfair.backend.exception.ErrorCode;
+import com.bookfair.backend.exception.UnauthorizedException;
 import com.bookfair.backend.security.JwtService;
-import com.bookfair.backend.service.SecurityManagementService;
+import com.bookfair.backend.service.TokenBlacklistService;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.AllArgsConstructor;
-import org.springframework.lang.NonNull;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Component
-@AllArgsConstructor
+@RequiredArgsConstructor
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
-    private final CustomUserDetailsService customUserDetailsService;
-    private final SecurityManagementService securityManagementService;
+    private final TokenBlacklistService tokenBlacklistService;
+    @Qualifier("handlerExceptionResolver")
+    private final HandlerExceptionResolver handlerExceptionResolver;
 
     @Override
-    protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain)
+    protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
+            @NonNull FilterChain filterChain)
             throws ServletException, IOException {
 
         final String authHeader = request.getHeader("Authorization");
-        String token = null;
-        UUID userId = null;
-        String roles = null;
-
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        token = authHeader.substring(7);
+        final String token = authHeader.substring(7);
+
+        String jti = null;
+        UUID userId = null;
+        String roles = null;
+        Date issuedAt = null;
+
         try {
-            if (securityManagementService.isTokenBlacklisted(token)) {
-                log.warn("Rejected request: Attempted access using a blacklisted token.");
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.setContentType("application/json");
-                response.getWriter().write("{\"error\": \"Token has been revoked\"}");
+            jti = jwtService.extractJti(token);
+            userId = jwtService.extractUserId(token);
+            roles = jwtService.extractSystemRole(token);
+            issuedAt = jwtService.extractIssuedAt(token);
+        } catch (Exception e) {
+            log.error("JWT Token cryptographic verification failed: {}", e.getMessage());
+            handlerExceptionResolver.resolveException(request, response, null,
+                    new UnauthorizedException("Invalid or malformed authentication token", ErrorCode.UNAUTHORIZED));
+            return;
+        }
+
+        try {
+            if (tokenBlacklistService.isAccessTokenBlacklisted(jti)) {
+                log.warn("Security Alert: Intercepted request attempting to use a blacklisted JWT token [JTI: {}].",
+                        jti);
+                handlerExceptionResolver.resolveException(request, response, null,
+                        new UnauthorizedException("Token has been revoked", ErrorCode.UNAUTHORIZED));
                 return;
             }
         } catch (Exception e) {
-            log.error("SecurityManagementService blacklist lookup failed: {}", e.getMessage());
+            log.error("Token Blacklist Service blacklist lookup failed: {}", e.getMessage(), e);
         }
 
+        if (userId != null && issuedAt != null) {
+            Long checkpointEpochSeconds = tokenBlacklistService.getSecurityCheckpoint(userId);
 
-        try {
-            userId = jwtService.extractUserId(token);
-            roles = jwtService.extractSystemRole(token);
-        } catch (Exception e) {
-            log.error("JWT Token extraction failed: {}", e.getMessage());
+            if (checkpointEpochSeconds != null) {
+                long tokenIssuedEpochSeconds = issuedAt.getTime() / 1000L;
+
+                if (tokenIssuedEpochSeconds < checkpointEpochSeconds) {
+                    log.warn(
+                            "Time-Travel Firewall Triggered: Token issued at {} is predated by security checkpoint {} for user [{}]",
+                            tokenIssuedEpochSeconds, checkpointEpochSeconds, userId);
+                    handlerExceptionResolver.resolveException(request, response, null,
+                            new UnauthorizedException("Session invalidated by a recent security event",
+                                    ErrorCode.UNAUTHORIZED));
+                    return;
+                }
+            }
         }
 
         if (userId != null && roles != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-
             try {
-                UserDetails userDetails = customUserDetailsService.loadUserById(userId);
+                if (!jwtService.isTokenExpired(token)) {
+                    List<GrantedAuthority> authorities = jwtService.extractAuthorities(token);
 
-                if (jwtService.validateToken(token, userDetails)) {
                     UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
-                            userDetails, null, userDetails.getAuthorities());
+                            userId, null, authorities);
                     authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+                } else {
+                    handlerExceptionResolver.resolveException(request, response, null,
+                            new UnauthorizedException("Token has expired", ErrorCode.UNAUTHORIZED));
+                    return;
                 }
-            } catch (UsernameNotFoundException | DisabledException e) {
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.setContentType("application/json");
-                response.getWriter().write("{\"error\": \"Unauthorized\"}");
+
+            } catch (Exception e) {
+                log.warn("Stateless authentication reconstruction failed for user [{}]: {}", userId, e.getMessage());
+                handlerExceptionResolver.resolveException(request, response, null,
+                        new UnauthorizedException("Invalid authentication state", ErrorCode.UNAUTHORIZED));
                 return;
             }
-
         }
 
         filterChain.doFilter(request, response);
     }
-
 }

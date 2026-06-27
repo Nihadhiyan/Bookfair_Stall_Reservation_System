@@ -1,17 +1,17 @@
 package com.bookfair.backend.security;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import javax.crypto.SecretKey;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Service;
 
 import com.bookfair.backend.model.User;
@@ -39,7 +39,6 @@ public class JwtService {
 
     private static final long PASSWORD_RESET_AND_VERIFICATION_TOKEN_EXPIRATION_TIME = 1000 * 60 * 15;
 
-    private final StringRedisTemplate redisTemplate;
     private final OrganizationMemberRepository memberRepository;
 
     public String generateAccessToken(User user) {
@@ -47,7 +46,7 @@ public class JwtService {
         Map<String, Object> claims = new HashMap<>();
 
         claims.put("roles", "ROLE_" + (user.getSystemRole() != null ? user.getSystemRole().name() : "CUSTOMER"));
-        
+
         List<OrganizationMember> members = memberRepository.findByUserId(user.getId());
         Map<String, String> orgRoles = new HashMap<>();
         for (OrganizationMember member : members) {
@@ -59,16 +58,12 @@ public class JwtService {
                 .claims()
                 .add(claims)
                 .subject(user.getId().toString())
+                .id(UUID.randomUUID().toString())
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + ACCESS_TOKEN_EXPIRATION_TIME))
                 .and()
                 .signWith(getKey())
                 .compact();
-
-        String sessionKey = "user_sessions:" + user.getId().toString();
-
-        redisTemplate.opsForSet().add(sessionKey, token);
-        redisTemplate.expire(sessionKey, ACCESS_TOKEN_EXPIRATION_TIME, TimeUnit.MILLISECONDS);
 
         return token;
     }
@@ -76,6 +71,7 @@ public class JwtService {
     public String generateRefreshToken(User user) {
         return Jwts.builder()
                 .subject(user.getId().toString())
+                .id(UUID.randomUUID().toString())
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + REFRESH_TOKEN_EXPIRATION_TIME))
                 .signWith(getKey())
@@ -113,6 +109,14 @@ public class JwtService {
         return UUID.fromString(extractClaim(token, Claims::getSubject));
     }
 
+    public Date extractIssuedAt(String token) {
+        return extractClaim(token, Claims::getIssuedAt);
+    }
+
+    public String extractJti(String token) {
+        return extractClaim(token, Claims::getId);
+    }
+
     public String extractSystemRole(String token) {
         return extractClaim(token, claims -> claims.get("roles", String.class));
     }
@@ -140,16 +144,6 @@ public class JwtService {
                 .getPayload();
     }
 
-    public boolean validateToken(String token, UserDetails userDetails) {
-        final UUID userId = extractUserId(token);
-
-        if (userDetails instanceof CustomUserPrincipal principal) {
-            return (userId.equals(principal.getId()) && !isTokenExpired(token));
-        }
-
-        return false;
-    }
-
     public long getRemainingExpirationTime(String token) {
 
         Date expiration = extractExpiration(token);
@@ -158,7 +152,7 @@ public class JwtService {
         return remaining > 0 ? remaining : 0;
     }
 
-    private boolean isTokenExpired(String token) {
+    public boolean isTokenExpired(String token) {
 
         return extractExpiration(token).before(new Date());
     }
@@ -169,5 +163,31 @@ public class JwtService {
 
     public long getAccessTokenExpirationTime() {
         return ACCESS_TOKEN_EXPIRATION_TIME;
+    }
+
+    public long getRefreshTokenExpirationTime() {
+        return REFRESH_TOKEN_EXPIRATION_TIME;
+    }
+
+    public List<GrantedAuthority> extractAuthorities(String token) {
+
+        List<GrantedAuthority> authorities = new ArrayList<>();
+
+        String systemRole = extractSystemRole(token);
+
+        if (systemRole != null && !systemRole.isBlank()) {
+            authorities.add(new SimpleGrantedAuthority(systemRole));
+        }
+
+        Map<String, String> orgRoles = extractOrgRoles(token);
+
+        if (orgRoles != null) {
+            for (Map.Entry<String, String> entry : orgRoles.entrySet()) {
+                String orgAuthority = "ORG_" + entry.getKey() + "_" + entry.getValue();
+                authorities.add(new SimpleGrantedAuthority(orgAuthority));
+            }
+        }
+
+        return authorities;
     }
 }

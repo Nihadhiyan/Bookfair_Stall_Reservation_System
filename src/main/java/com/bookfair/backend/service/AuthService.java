@@ -4,11 +4,8 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -33,14 +30,17 @@ import com.bookfair.backend.exception.ResourceNotFoundException;
 import com.bookfair.backend.model.Organization;
 import com.bookfair.backend.model.User;
 import com.bookfair.backend.model.OrganizationMember;
-import com.bookfair.backend.model.OrganizationRole;
-import com.bookfair.backend.model.SystemRole;
+import com.bookfair.backend.model.OrganizationMember.OrganizationRole;
+import com.bookfair.backend.model.User.SystemRole;
 import com.bookfair.backend.repository.OrganizationMemberRepository;
 import com.bookfair.backend.repository.OrganizationRepository;
 import com.bookfair.backend.repository.UserRepository;
-import com.bookfair.backend.security.CustomUserDetailsService;
-import com.bookfair.backend.security.CustomUserPrincipal;
 import com.bookfair.backend.security.JwtService;
+import com.bookfair.backend.model.RefreshToken;
+import com.bookfair.backend.util.RequestUtils;
+import com.bookfair.backend.exception.UnauthorizedException;
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.Objects;
 
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -55,17 +55,17 @@ public class AuthService {
     private final OrganizationRepository organizationRepository;
     private final OrganizationMemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
-    private final AuthenticationManager authenticationManager;
     private final AuthMapper authMapper;
     private final JwtService jwtService;
-    private final CustomUserDetailsService userDetailsService;
     private final TokenManagementService tokenManagementService;
-    private final SecurityManagementService securityManagementService;
+    private final TokenBlacklistService tokenBlacklistService;
     private final ApplicationEventPublisher eventPublisher;
     private final LoginAttemptService loginAttemptService;
 
     @Transactional
-    public AuthResponse register(RegisterRequest registerRequest) {
+    public AuthResponse register(RegisterRequest registerRequest, HttpServletRequest request) {
+        Objects.requireNonNull(registerRequest, "Register request cannot be null");
+        Objects.requireNonNull(request, "HttpServletRequest cannot be null");
 
         if (userRepository.existsByUsernameAndActiveTrue(registerRequest.getUsername())) {
             throw new DuplicateResourceException("Username is already taken", ErrorCode.DUPLICATE_USERNAME);
@@ -120,73 +120,119 @@ public class AuthService {
                 new UserRegisteredEvent(savedUser.getId(), savedUser.getUsername(), savedUser.getEmail()));
 
         String accessToken = jwtService.generateAccessToken(savedUser);
-        String refreshToken = jwtService.generateRefreshToken(savedUser);
+        String refreshTokenString = jwtService.generateRefreshToken(savedUser);
+
+        // Persist granular session in PostgreSQL
+        String ipAddress = RequestUtils.getClientIpAddress(request);
+        String deviceInfo = RequestUtils.getDeviceInfo(request);
+        tokenManagementService.createAndStoreRefreshToken(savedUser, refreshTokenString,
+                jwtService.getRefreshTokenExpirationTime(), ipAddress, deviceInfo);
 
         Long expiresIn = jwtService.getAccessTokenExpirationTime() / 1000; // 1 hour in seconds
 
-        return authMapper.toAuthResponse(savedUser, accessToken, refreshToken, expiresIn);
+        return authMapper.toAuthResponse(savedUser, accessToken, refreshTokenString, expiresIn);
 
     }
 
-    @Transactional(readOnly = true)
-    public AuthResponse login(LoginRequest loginRequest) {
-        if (loginAttemptService.isLocked(loginRequest.getUsername())) {
+    @Transactional
+    public AuthResponse login(LoginRequest loginRequest, HttpServletRequest request) {
+        Objects.requireNonNull(loginRequest, "Login request cannot be null");
+        Objects.requireNonNull(request, "HttpServletRequest cannot be null");
+
+        String username = loginRequest.getUsername();
+
+        if (loginAttemptService.isLocked(username)) {
             throw new BusinessException("Account is locked due to too many failed login attempts.",
                     ErrorCode.FORBIDDEN);
         }
 
-        try {
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(
-                            loginRequest.getUsername(),
-                            loginRequest.getPassword()));
-        } catch (org.springframework.security.core.AuthenticationException e) {
-            loginAttemptService.recordFailedAttempt(loginRequest.getUsername());
-            if (loginAttemptService.isLocked(loginRequest.getUsername())) {
-                userRepository.findByUsernameAndActiveTrue(loginRequest.getUsername())
-                        .ifPresent(u -> eventPublisher
-                                .publishEvent(new UserAccountLockedEvent(u.getId(), u.getUsername(), u.getEmail())));
+        User user = userRepository.findByUsernameAndActiveTrue(username)
+                .orElseThrow(() -> new BusinessException("Invalid username or password", ErrorCode.UNAUTHORIZED));
+
+        if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
+            loginAttemptService.recordFailedAttempt(username);
+            if (loginAttemptService.isLocked(username)) {
+                eventPublisher
+                        .publishEvent(new UserAccountLockedEvent(user.getId(), user.getUsername(), user.getEmail()));
             }
             throw new BusinessException("Invalid username or password", ErrorCode.UNAUTHORIZED);
         }
 
-        loginAttemptService.resetAttempts(loginRequest.getUsername());
-
-        User user = userRepository.findByUsernameAndActiveTrue(loginRequest.getUsername())
-                .orElseThrow(
-                        () -> new ResourceNotFoundException("Invalid username or password", ErrorCode.USER_NOT_FOUND));
+        loginAttemptService.resetAttempts(username);
 
         String accessToken = jwtService.generateAccessToken(user);
-        String refreshToken = jwtService.generateRefreshToken(user);
+        String refreshTokenString = jwtService.generateRefreshToken(user);
+
+        // Persist granular login session in database
+        String ipAddress = RequestUtils.getClientIpAddress(request);
+        String deviceInfo = RequestUtils.getDeviceInfo(request);
+        tokenManagementService.createAndStoreRefreshToken(user, refreshTokenString,
+                jwtService.getRefreshTokenExpirationTime(), ipAddress, deviceInfo);
 
         Long expiresIn = jwtService.getAccessTokenExpirationTime() / 1000; // 1 hour in seconds
 
-        return authMapper.toAuthResponse(user, accessToken, refreshToken, expiresIn);
+        return authMapper.toAuthResponse(user, accessToken, refreshTokenString, expiresIn);
     }
 
-    @Transactional(readOnly = true)
-    public AuthResponse refreshToken(RefreshTokenRequest refreshTokenRequest) {
-        UUID userId = jwtService.extractUserId(refreshTokenRequest.getRefreshToken());
+    @Transactional
+    public AuthResponse refreshToken(RefreshTokenRequest refreshTokenRequest, HttpServletRequest request) {
+        Objects.requireNonNull(refreshTokenRequest, "RefreshTokenRequest cannot be null");
+        Objects.requireNonNull(request, "HttpServletRequest cannot be null");
 
-        UserDetails userDetails = userDetailsService.loadUserById(userId);
+        String oldTokenString = refreshTokenRequest.getRefreshToken();
+        Objects.requireNonNull(oldTokenString, "Refresh token string cannot be null");
 
-        if (jwtService.validateToken(refreshTokenRequest.getRefreshToken(), userDetails)) {
+        // Verifying persistent device session against PostgreSQL
+        RefreshToken session = tokenManagementService.findByToken(oldTokenString)
+                .orElseThrow(() -> new UnauthorizedException("Refresh token session is invalid or has been revoked",
+                        ErrorCode.UNAUTHORIZED));
+
+        if (session.isExpired()) {
+            tokenManagementService.revokeDeviceSession(session.getId());
+            throw new UnauthorizedException("Refresh token session has expired. Please log in again.",
+                    ErrorCode.BOOKING_EXPIRED);
+        }
+
+        UUID userId = jwtService.extractUserId(oldTokenString);
+
+        if (jwtService.isTokenExpired(oldTokenString)) {
             User user = userRepository.findByIdAndActiveTrue(userId)
                     .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.USER_NOT_FOUND));
 
+            /*
+             * CRITICAL REQUIREMENT - SOFT REVOCATIONS:
+             * Why we query fresh database roles: When issuing a new Access Token during a
+             * refresh cycle,
+             * we DO NOT simply copy claims from the old token or user entity in memory.
+             * Instead,
+             * calling jwtService.generateAccessToken(user) triggers a live database query
+             * against
+             * OrganizationMemberRepository.findByUserId(user.getId()).
+             * This ensures that if an administrator recently demoted the user or removed
+             * them from an
+             * organization, those role updates are instantly reflected in the new Access
+             * Token payload
+             * without requiring the user to execute a hard logout or re-authenticate.
+             */
             String newAccessToken = jwtService.generateAccessToken(user);
-            String newRefreshToken = jwtService.generateRefreshToken(user);
+            String newRefreshTokenString = jwtService.generateRefreshToken(user);
+
+            // Revoke old session and store new granular session
+            tokenManagementService.revokeDeviceSession(session.getId());
+            String ipAddress = RequestUtils.getClientIpAddress(request);
+            String deviceInfo = RequestUtils.getDeviceInfo(request);
+            tokenManagementService.createAndStoreRefreshToken(user, newRefreshTokenString,
+                    jwtService.getRefreshTokenExpirationTime(), ipAddress, deviceInfo);
 
             Long expiresIn = jwtService.getAccessTokenExpirationTime() / 1000;
 
-            return authMapper.toAuthResponse(user, newAccessToken, newRefreshToken, expiresIn);
-
+            return authMapper.toAuthResponse(user, newAccessToken, newRefreshTokenString, expiresIn);
         }
 
-        throw new BusinessException("Invalid refresh token", ErrorCode.UNAUTHORIZED);
+        throw new UnauthorizedException("Invalid refresh token signature", ErrorCode.UNAUTHORIZED);
     }
 
-    public void logout(String authHeader) {
+    public void logout(String authHeader, RefreshTokenRequest refreshTokenRequest) {
 
         log.info("User requested logout. Frontend should clear tokens.");
 
@@ -196,15 +242,19 @@ public class AuthService {
 
         String token = authHeader.substring(7);
 
-        long remainingTime = jwtService.getRemainingExpirationTime(token);
+        long remainingTime = jwtService.getRemainingExpirationTime(token) / 1000;
 
         if (remainingTime > 0) {
             try {
-                securityManagementService.blacklistToken(token, remainingTime);
+                String jti = jwtService.extractJti(token);
+                if (jti != null) {
+                    tokenBlacklistService.blacklistAccessTokenId(jti, remainingTime);
+                }
                 UUID userId = jwtService.extractUserId(token);
-                userRepository.findByIdAndActiveTrue(userId).ifPresent(user -> {
-                    securityManagementService.removeSession(user.getId(), token);
-                });
+                if (userId != null && refreshTokenRequest != null && refreshTokenRequest.getRefreshToken() != null
+                        && !refreshTokenRequest.getRefreshToken().isBlank()) {
+                    tokenManagementService.revokeDeviceSessionByToken(refreshTokenRequest.getRefreshToken());
+                }
 
                 log.info("Token successfully blacklisted and session removed.");
             } catch (Exception e) {
@@ -232,11 +282,14 @@ public class AuthService {
     @Transactional
     public void resetPassword(ResetPasswordRequest request) {
         UUID userId = jwtService.extractUserId(request.getResetToken());
+        String jti = jwtService.extractJti(request.getResetToken());
 
-        UserDetails userDetails = userDetailsService.loadUserById(userId);
-
-        if (!jwtService.validateToken(request.getResetToken(), userDetails)) {
+        if (jwtService.isTokenExpired(request.getResetToken())) {
             throw new BusinessException("Invalid or expired reset token.", ErrorCode.UNAUTHORIZED);
+        }
+
+        if (!tokenManagementService.consumePasswordResetToken(userId.toString(), jti)) {
+            throw new BusinessException("Token is invalid, expired, or has already been used.", ErrorCode.UNAUTHORIZED);
         }
 
         String tokenPurpose = jwtService.extractPurpose(request.getResetToken());
@@ -283,11 +336,14 @@ public class AuthService {
         String verificationToken = verifyEmailRequest.getToken();
 
         UUID userId = jwtService.extractUserId(verificationToken);
+        String jti = jwtService.extractJti(verificationToken);
 
-        UserDetails userDetails = userDetailsService.loadUserById(userId);
-
-        if (!jwtService.validateToken(verificationToken, userDetails)) {
+        if (jwtService.isTokenExpired(verificationToken)) {
             throw new BusinessException("Invalid or expired verification token.", ErrorCode.UNAUTHORIZED);
+        }
+
+        if (!tokenManagementService.consumeEmailVerificationToken(userId.toString(), jti)) {
+            throw new BusinessException("Token is invalid, expired, or has already been used.", ErrorCode.UNAUTHORIZED);
         }
 
         String tokenPurpose = jwtService.extractPurpose(verificationToken);
@@ -328,8 +384,12 @@ public class AuthService {
     private UUID getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        if (authentication != null && authentication.getPrincipal() instanceof CustomUserPrincipal principal) {
-            return principal.getId();
+        if (authentication != null && authentication.getPrincipal() instanceof UUID userId) {
+            return userId;
+        }
+
+        if (authentication != null && authentication.getPrincipal() instanceof String userIdString) {
+            return UUID.fromString(userIdString);
         }
 
         throw new BusinessException("Unable to resolve current user", ErrorCode.UNAUTHORIZED);

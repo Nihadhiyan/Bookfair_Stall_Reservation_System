@@ -1,6 +1,6 @@
 package com.bookfair.backend.dto.reservation.request;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -24,10 +24,10 @@ public class CreateReservationRequest {
     private List<UUID> stallIds;
 
     @NotNull(message = "Reservation start time is required")
-    private LocalDateTime reservationStartDateTime;
+    private Instant reservationStartDateTime;
 
     @NotNull(message = "Expiration time is required")
-    private LocalDateTime expiresAt;
+    private Instant expiresAt;
 
     @NotNull(message = "Genre id is required")
     private UUID genreId;

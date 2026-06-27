@@ -1,8 +1,8 @@
 package com.bookfair.backend.dto.reservation.response;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
@@ -23,8 +23,8 @@ public class ReservationDetailResponse {
     private SimpleUserDto user;
     private SimpleEventDto event;
     private LocalDate date;
-    private LocalDateTime reservationStartDateTime;
-    private LocalDateTime expiresAt;
+    private Instant reservationStartDateTime;
+    private Instant expiresAt;
     private LocalTime time;
     private String status;
     private BigDecimal totalAmount;

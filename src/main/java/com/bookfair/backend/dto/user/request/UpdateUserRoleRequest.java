@@ -1,6 +1,6 @@
 package com.bookfair.backend.dto.user.request;
 
-import com.bookfair.backend.model.SystemRole;
+import com.bookfair.backend.model.User.SystemRole;
 
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;

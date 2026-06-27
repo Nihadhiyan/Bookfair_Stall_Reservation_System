@@ -71,8 +71,6 @@ public class PaymentService {
         return paymentMapper.toPaymentResponse(saved);
     }
 
-    // External event listeners must use Propagation.REQUIRES_NEW to ensure database
-    // state integrity.
     @Transactional
     public void processWebhook(String payload, String signatureHeader, String gatewayType) {
         PaymentGateway adapter = paymentGateways.stream()

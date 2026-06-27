@@ -1,7 +1,7 @@
 package com.bookfair.backend.dto.reservation.request;
 
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
@@ -32,10 +32,10 @@ public class UpdateReservationRequest {
     private LocalDate date;
 
     @NotNull(message = "Reservation start time is required")
-    private LocalDateTime reservationStartDateTime;
+    private Instant reservationStartDateTime;
 
     @NotNull(message = "Expiration time is required")
-    private LocalDateTime expiresAt;
+    private Instant expiresAt;
 
     @NotNull(message = "Time is required")
     private LocalTime time;

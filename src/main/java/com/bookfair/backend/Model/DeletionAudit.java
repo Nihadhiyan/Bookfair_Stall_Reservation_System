@@ -1,6 +1,6 @@
 package com.bookfair.backend.model;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -17,8 +17,8 @@ import lombok.Setter;
 @NoArgsConstructor
 public class DeletionAudit {
 
-    @Column(name = "deleted_at", updatable = false)
-    private LocalDateTime deletedAt;
+    @Column(name = "deleted_at", updatable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
+    private Instant deletedAt;
 
     @Column(name = "deleted_by", updatable = false)
     private UUID deletedBy;

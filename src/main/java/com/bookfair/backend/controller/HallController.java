@@ -1,6 +1,6 @@
 package com.bookfair.backend.controller;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -40,43 +40,43 @@ public class HallController {
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponseDto<HallResponse> createHall(@Valid @RequestBody CreateHallRequest request) {
         HallResponse data = hallService.createHall(request);
-        return new ApiResponseDto<>(true, "Hall created successfully", data, LocalDateTime.now());
+        return new ApiResponseDto<>(true, "Hall created successfully", data, Instant.now());
     }
 
     @GetMapping("/{id}")
     public ApiResponseDto<HallResponse> getHallById(@PathVariable UUID id) {
         HallResponse data = hallService.getHallById(id);
-        return new ApiResponseDto<>(true, "Hall fetched successfully", data, LocalDateTime.now());
+        return new ApiResponseDto<>(true, "Hall fetched successfully", data, Instant.now());
     }
 
     @GetMapping("/{id}/layout")
     public ApiResponseDto<HallLayoutResponse> getHallLayout(@PathVariable UUID id) {
         HallLayoutResponse data = hallService.getHallLayout(id);
-        return new ApiResponseDto<>(true, "Hall layout fetched successfully", data, LocalDateTime.now());
+        return new ApiResponseDto<>(true, "Hall layout fetched successfully", data, Instant.now());
     }
 
     @PutMapping("/{id}")
     public ApiResponseDto<HallResponse> updateHall(@PathVariable UUID id, @Valid @RequestBody UpdateHallRequest request) {
         HallResponse data = hallService.updateHall(id, request);
-        return new ApiResponseDto<>(true, "Hall updated successfully", data, LocalDateTime.now());
+        return new ApiResponseDto<>(true, "Hall updated successfully", data, Instant.now());
     }
 
     @DeleteMapping("/{id}")
     public ApiResponseDto<Void> deleteHall(@PathVariable UUID id) {
         hallService.deleteHall(id);
-        return new ApiResponseDto<>(true, "Hall deleted successfully", null, LocalDateTime.now());
+        return new ApiResponseDto<>(true, "Hall deleted successfully", null, Instant.now());
     }
 
     @GetMapping("/{id}/stalls")
     public ApiResponseDto<List<StallResponse>> getStallsByHall(@PathVariable UUID id) {
         List<StallResponse> data = hallService.getStallsByHall(id);
-        return new ApiResponseDto<>(true, "Stalls fetched successfully", data, LocalDateTime.now());
+        return new ApiResponseDto<>(true, "Stalls fetched successfully", data, Instant.now());
     }
 
     @PostMapping("/{id}/generate")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponseDto<List<StallResponse>> generateStallGrid(@PathVariable UUID id, @Valid @RequestBody GenerateStallGridRequest request) {
         List<StallResponse> data = hallService.generateStallGrid(id, request);
-        return new ApiResponseDto<>(true, "Stall grid generated successfully", data, LocalDateTime.now());
+        return new ApiResponseDto<>(true, "Stall grid generated successfully", data, Instant.now());
     }
 }

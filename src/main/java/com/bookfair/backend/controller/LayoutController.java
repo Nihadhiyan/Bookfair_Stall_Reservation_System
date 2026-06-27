@@ -1,5 +1,6 @@
 package com.bookfair.backend.controller;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.bookfair.backend.dto.common.ApiResponseDto;
 import com.bookfair.backend.dto.common.LayoutPositionDto;
 import com.bookfair.backend.dto.layout.request.GenerateStallGridRequest;
 import com.bookfair.backend.dto.stall.mapper.StallMapper;
@@ -35,15 +37,15 @@ public class LayoutController {
 
     @GetMapping("/hall/{hallId}")
     @PreAuthorize("hasAnyRole('USER', 'ORG_ADMIN', 'SUPER_ADMIN')")
-    public ResponseEntity<List<StallResponse>> getHallLayout(@PathVariable UUID hallId) {
+    public ResponseEntity<ApiResponseDto<List<StallResponse>>> getHallLayout(@PathVariable UUID hallId) {
         List<Stall> stalls = layoutGenerationService.getHallLayout(hallId);
         List<StallResponse> response = stalls.stream().map(stallMapper::toStallResponse).collect(Collectors.toList());
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(new ApiResponseDto<>(true, "Hall layout fetched successfully", response, Instant.now()));
     }
 
     @PostMapping("/hall/{hallId}/generate")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
-    public ResponseEntity<List<StallResponse>> autoGenerateStallGrid(
+    public ResponseEntity<ApiResponseDto<List<StallResponse>>> autoGenerateStallGrid(
             @PathVariable UUID hallId, 
             @Valid @RequestBody GenerateStallGridRequest request) {
         List<Stall> stalls = layoutGenerationService.autoGenerateStallGrid(
@@ -57,15 +59,16 @@ public class LayoutController {
                 request.getStartY()
         );
         List<StallResponse> response = stalls.stream().map(stallMapper::toStallResponse).collect(Collectors.toList());
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponseDto<>(true, "Stall grid generated successfully", response, Instant.now()));
     }
 
     @PutMapping("/stall/{stallId}/coordinates")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
-    public ResponseEntity<StallResponse> updateStallCoordinates(
+    public ResponseEntity<ApiResponseDto<StallResponse>> updateStallCoordinates(
             @PathVariable UUID stallId, 
             @Valid @RequestBody LayoutPositionDto request) {
         Stall updatedStall = layoutGenerationService.updateStallCoordinates(stallId, request);
-        return ResponseEntity.ok(stallMapper.toStallResponse(updatedStall));
+        StallResponse data = stallMapper.toStallResponse(updatedStall);
+        return ResponseEntity.ok(new ApiResponseDto<>(true, "Stall coordinates updated successfully", data, Instant.now()));
     }
 }

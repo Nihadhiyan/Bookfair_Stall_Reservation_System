@@ -1,6 +1,6 @@
 package com.bookfair.backend.service;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,7 +33,7 @@ public class ReservationCleanupService {
     @Transactional
     public void releaseExpiredReservations() {
         List<Reservation> expiredReservations = reservationRepository
-                .findByExpiresAtBeforeAndStatus(LocalDateTime.now(), ReservationStatus.PENDING);
+                .findByExpiresAtBeforeAndStatus(Instant.now(), ReservationStatus.PENDING);
 
         if (expiredReservations.isEmpty()) {
             return;

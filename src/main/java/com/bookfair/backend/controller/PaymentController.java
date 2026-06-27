@@ -1,5 +1,6 @@
 package com.bookfair.backend.controller;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.bookfair.backend.dto.common.ApiResponseDto;
 import com.bookfair.backend.dto.payment.request.CreatePaymentRequest;
 import com.bookfair.backend.dto.payment.response.PaymentResponse;
 import com.bookfair.backend.service.PaymentService;
@@ -28,8 +30,9 @@ public class PaymentController {
 
     @PostMapping("/initialize")
     @PreAuthorize("hasAnyRole('USER', 'ORG_ADMIN', 'SUPER_ADMIN')")
-    public ResponseEntity<PaymentResponse> initializePayment(@Valid @RequestBody CreatePaymentRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(paymentService.initializePayment(request, "STRIPE"));
+    public ResponseEntity<ApiResponseDto<PaymentResponse>> initializePayment(@Valid @RequestBody CreatePaymentRequest request) {
+        PaymentResponse data = paymentService.initializePayment(request, "STRIPE");
+        return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponseDto<>(true, "Payment initialized successfully", data, Instant.now()));
     }
 
     @PostMapping("/webhook")
@@ -41,7 +44,8 @@ public class PaymentController {
 
     @GetMapping("/{transactionId}/status")
     @PreAuthorize("hasAnyRole('USER', 'ORG_ADMIN', 'SUPER_ADMIN')")
-    public ResponseEntity<PaymentResponse> getPaymentStatus(@PathVariable UUID transactionId) {
-        return ResponseEntity.ok(paymentService.getPaymentStatus(transactionId));
+    public ResponseEntity<ApiResponseDto<PaymentResponse>> getPaymentStatus(@PathVariable UUID transactionId) {
+        PaymentResponse data = paymentService.getPaymentStatus(transactionId);
+        return ResponseEntity.ok(new ApiResponseDto<>(true, "Payment status fetched successfully", data, Instant.now()));
     }
 }

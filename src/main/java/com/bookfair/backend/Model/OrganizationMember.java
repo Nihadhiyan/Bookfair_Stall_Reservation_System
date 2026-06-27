@@ -38,4 +38,9 @@ public class OrganizationMember extends BaseEntity implements Serializable {
 
     @Column(name = "active", nullable = false)
     private Boolean active = true;
+
+    public enum OrganizationRole {
+        ORG_ADMIN,
+        ORG_MEMBER
+    }
 }

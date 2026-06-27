@@ -1,6 +1,6 @@
 package com.bookfair.backend.controller;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -36,30 +36,30 @@ public class EventStallController {
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponseDto<EventStallResponse> assignStallToEvent(@Valid @RequestBody CreateEventStallRequest request) {
         EventStallResponse data = eventStallService.assignStallToEvent(request);
-        return new ApiResponseDto<>(true, "Stall assigned to event successfully", data, LocalDateTime.now());
+        return new ApiResponseDto<>(true, "Stall assigned to event successfully", data, Instant.now());
     }
 
     @GetMapping("/{id}")
     public ApiResponseDto<EventStallResponse> getEventStallById(@PathVariable UUID id) {
         EventStallResponse data = eventStallService.getEventStallById(id);
-        return new ApiResponseDto<>(true, "Event stall fetched successfully", data, LocalDateTime.now());
+        return new ApiResponseDto<>(true, "Event stall fetched successfully", data, Instant.now());
     }
 
     @PutMapping("/{id}")
     public ApiResponseDto<EventStallResponse> updateEventStall(@PathVariable UUID id, @Valid @RequestBody CreateEventStallRequest request) {
         EventStallResponse data = eventStallService.updateEventStall(id, request);
-        return new ApiResponseDto<>(true, "Event stall updated successfully", data, LocalDateTime.now());
+        return new ApiResponseDto<>(true, "Event stall updated successfully", data, Instant.now());
     }
 
     @DeleteMapping("/{id}")
     public ApiResponseDto<Void> removeStallFromEvent(@PathVariable UUID id) {
         eventStallService.removeStallFromEvent(id);
-        return new ApiResponseDto<>(true, "Stall removed from event successfully", null, LocalDateTime.now());
+        return new ApiResponseDto<>(true, "Stall removed from event successfully", null, Instant.now());
     }
 
     @GetMapping("/event/{eventId}")
     public ApiResponseDto<List<EventStallResponse>> getStallsForEvent(@PathVariable UUID eventId) {
         List<EventStallResponse> data = eventStallService.getStallsForEvent(eventId);
-        return new ApiResponseDto<>(true, "Event stalls fetched successfully", data, LocalDateTime.now());
+        return new ApiResponseDto<>(true, "Event stalls fetched successfully", data, Instant.now());
     }
 }

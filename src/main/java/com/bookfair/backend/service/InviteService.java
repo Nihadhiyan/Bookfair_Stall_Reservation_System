@@ -10,7 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -43,7 +44,7 @@ public class InviteService {
         invite.setEmail(request.getEmail());
         invite.setAssignedRole(request.getRole());
         invite.setToken(token);
-        invite.setExpiresAt(LocalDateTime.now().plusDays(7));
+        invite.setExpiresAt(Instant.now().plus(7, ChronoUnit.DAYS));
         invite.setUsed(false);
 
         inviteRepository.save(invite);
@@ -71,7 +72,7 @@ public class InviteService {
             throw new BusinessException("Invite has already been used", ErrorCode.BUSINESS_RULE_VIOLATION);
         }
 
-        if (invite.getExpiresAt().isBefore(LocalDateTime.now())) {
+        if (invite.getExpiresAt().isBefore(Instant.now())) {
             throw new BusinessException("Invite has expired", ErrorCode.BUSINESS_RULE_VIOLATION);
         }
 

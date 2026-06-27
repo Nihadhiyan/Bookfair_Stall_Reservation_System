@@ -1,5 +1,6 @@
 package com.bookfair.backend.controller;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.bookfair.backend.dto.common.ApiResponseDto;
 import com.bookfair.backend.dto.pricing.request.PricingRuleRequest;
 import com.bookfair.backend.dto.pricing.response.PricingBreakdownResponse;
 import com.bookfair.backend.dto.pricing.response.PricingRuleResponse;
@@ -31,22 +33,25 @@ public class PricingEngineController {
 
     @GetMapping("/quote")
     @PreAuthorize("hasAnyRole('USER', 'ORG_ADMIN', 'SUPER_ADMIN')")
-    public ResponseEntity<PricingBreakdownResponse> calculateQuote(
+    public ResponseEntity<ApiResponseDto<PricingBreakdownResponse>> calculateQuote(
             @RequestParam List<UUID> stallIds,
             @RequestParam int durationDays,
             @RequestParam String orgType) {
-        return ResponseEntity.ok(pricingEngineService.calculateQuote(stallIds, durationDays, orgType));
+        PricingBreakdownResponse data = pricingEngineService.calculateQuote(stallIds, durationDays, orgType);
+        return ResponseEntity.ok(new ApiResponseDto<>(true, "Quote calculated successfully", data, Instant.now()));
     }
 
     @GetMapping("/rules")
     @PreAuthorize("hasAnyRole('USER', 'ORG_ADMIN', 'SUPER_ADMIN')")
-    public ResponseEntity<List<PricingRuleResponse>> viewActiveRules() {
-        return ResponseEntity.ok(pricingRuleService.getActiveRules());
+    public ResponseEntity<ApiResponseDto<List<PricingRuleResponse>>> viewActiveRules() {
+        List<PricingRuleResponse> data = pricingRuleService.getActiveRules();
+        return ResponseEntity.ok(new ApiResponseDto<>(true, "Active pricing rules fetched successfully", data, Instant.now()));
     }
 
     @PostMapping("/rules")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
-    public ResponseEntity<PricingRuleResponse> addPricingRule(@Valid @RequestBody PricingRuleRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(pricingRuleService.createPricingRule(request));
+    public ResponseEntity<ApiResponseDto<PricingRuleResponse>> addPricingRule(@Valid @RequestBody PricingRuleRequest request) {
+        PricingRuleResponse data = pricingRuleService.createPricingRule(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponseDto<>(true, "Pricing rule created successfully", data, Instant.now()));
     }
 }

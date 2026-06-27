@@ -60,4 +60,9 @@ public class User extends BaseEntity implements Serializable {
     @Embedded
     private DeletionAudit deletionAudit;
 
+    public enum SystemRole {
+        SUPER_ADMIN, // Platform owner
+        CUSTOMER // Standard public user
+    }
+
 }

@@ -1,6 +1,6 @@
 package com.bookfair.backend.controller;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -38,7 +38,7 @@ public class OrganizationController {
     public ResponseEntity<ApiResponseDto<OrganizationResponse>> createOrganization(@RequestBody @Valid CreateOrganizationRequest request) {
         OrganizationResponse response = organizationService.createOrganization(request);
         return ResponseEntity
-                .ok(new ApiResponseDto<>(true, "Organization created successfully", response, LocalDateTime.now()));
+                .ok(new ApiResponseDto<>(true, "Organization created successfully", response, Instant.now()));
     }
 
     @GetMapping
@@ -46,14 +46,14 @@ public class OrganizationController {
             @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
         Page<OrganizationResponse> response = organizationService.getAllOrganizations(pageable);
         return ResponseEntity
-                .ok(new ApiResponseDto<>(true, "Organizations retrieved successfully", response, LocalDateTime.now()));
+                .ok(new ApiResponseDto<>(true, "Organizations retrieved successfully", response, Instant.now()));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponseDto<OrganizationResponse>> getOrganization(@PathVariable UUID id) {
         OrganizationResponse response = organizationService.getOrganizationById(id);
         return ResponseEntity
-                .ok(new ApiResponseDto<>(true, "Organization retrieved successfully", response, LocalDateTime.now()));
+                .ok(new ApiResponseDto<>(true, "Organization retrieved successfully", response, Instant.now()));
     }
 
     @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN')")
@@ -62,13 +62,13 @@ public class OrganizationController {
             @Valid @RequestBody UpdateOrganizationRequest request) {
         OrganizationResponse response = organizationService.updateOrganization(id, request);
         return ResponseEntity
-                .ok(new ApiResponseDto<>(true, "Organization updated successfully", response, LocalDateTime.now()));
+                .ok(new ApiResponseDto<>(true, "Organization updated successfully", response, Instant.now()));
     }
 
     @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponseDto<Void>> deleteOrganization(@PathVariable UUID id) {
         organizationService.deactivateOrganization(id);
-        return ResponseEntity.ok(new ApiResponseDto<>(true, "Organization deleted successfully", null, LocalDateTime.now()));
+        return ResponseEntity.ok(new ApiResponseDto<>(true, "Organization deleted successfully", null, Instant.now()));
     }
 }

@@ -1,6 +1,6 @@
 package com.bookfair.backend.controller;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -39,7 +39,7 @@ public class ReservationController {
     public ResponseEntity<ApiResponseDto<List<ReservationResponse>>> getMyReservations(Authentication authentication) {
         List<ReservationResponse> response = reservationService.getMyReservations(authentication.getName());
         return ResponseEntity.ok(
-                new ApiResponseDto<>(true, "My reservations retrieved successfully", response, LocalDateTime.now()));
+                new ApiResponseDto<>(true, "My reservations retrieved successfully", response, Instant.now()));
     }
 
     @PreAuthorize("isAuthenticated()")
@@ -48,7 +48,7 @@ public class ReservationController {
             @Valid @RequestBody CreateReservationRequest request) {
         ReservationResponse response = reservationService.createReservation(request);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new ApiResponseDto<>(true, "Reservation created successfully", response, LocalDateTime.now()));
+                .body(new ApiResponseDto<>(true, "Reservation created successfully", response, Instant.now()));
     }
 
     @PreAuthorize("isAuthenticated()")
@@ -56,7 +56,7 @@ public class ReservationController {
     public ResponseEntity<ApiResponseDto<Void>> cancelReservation(@PathVariable UUID reservationId) {
         reservationService.requestCancellation(reservationId);
         return ResponseEntity
-                .ok(new ApiResponseDto<>(true, "Reservation cancelled successfully", null, LocalDateTime.now()));
+                .ok(new ApiResponseDto<>(true, "Reservation cancelled successfully", null, Instant.now()));
     }
 
     @PreAuthorize("isAuthenticated()")
@@ -64,7 +64,7 @@ public class ReservationController {
     public ResponseEntity<ApiResponseDto<ReservationResponse>> getReservationById(@PathVariable UUID reservationId) {
         ReservationResponse response = reservationService.getReservationById(reservationId);
         return ResponseEntity
-                .ok(new ApiResponseDto<>(true, "Reservation retrieved successfully", response, LocalDateTime.now()));
+                .ok(new ApiResponseDto<>(true, "Reservation retrieved successfully", response, Instant.now()));
     }
 
     @PreAuthorize("isAuthenticated()")
@@ -73,7 +73,7 @@ public class ReservationController {
             @PathVariable UUID reservationId) {
         ReservationDetailResponse response = reservationService.getReservationDetails(reservationId);
         return ResponseEntity.ok(new ApiResponseDto<>(true, "Reservation details retrieved successfully", response,
-                LocalDateTime.now()));
+                Instant.now()));
     }
 
     @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN')")
@@ -82,7 +82,7 @@ public class ReservationController {
             @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
         Page<ReservationResponse> response = reservationService.getAllReservations(pageable);
         return ResponseEntity
-                .ok(new ApiResponseDto<>(true, "Reservations retrieved successfully", response, LocalDateTime.now()));
+                .ok(new ApiResponseDto<>(true, "Reservations retrieved successfully", response, Instant.now()));
     }
 
     @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN')")
@@ -90,13 +90,13 @@ public class ReservationController {
     public ResponseEntity<ApiResponseDto<Void>> confirmReservation(@PathVariable UUID reservationId) {
         reservationService.confirmReservation(reservationId);
         return ResponseEntity
-                .ok(new ApiResponseDto<>(true, "Reservation confirmed successfully", null, LocalDateTime.now()));
+                .ok(new ApiResponseDto<>(true, "Reservation confirmed successfully", null, Instant.now()));
     }
 
     @PreAuthorize("hasAnyRole('ADMIN', 'ORG_ADMIN')")
     @PostMapping("/{reservationId}/refund")
     public ResponseEntity<ApiResponseDto<Void>> approveRefund(@PathVariable UUID reservationId) {
         reservationService.approveRefund(reservationId);
-        return ResponseEntity.ok(new ApiResponseDto<>(true, "Refund approved successfully", null, LocalDateTime.now()));
+        return ResponseEntity.ok(new ApiResponseDto<>(true, "Refund approved successfully", null, Instant.now()));
     }
 }

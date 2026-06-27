@@ -1,6 +1,6 @@
 package com.bookfair.backend.controller;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -38,30 +38,30 @@ public class FloorController {
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponseDto<FloorResponse> createFloor(@Valid @RequestBody CreateFloorRequest request) {
         FloorResponse data = floorService.createFloor(request);
-        return new ApiResponseDto<>(true, "Floor created successfully", data, LocalDateTime.now());
+        return new ApiResponseDto<>(true, "Floor created successfully", data, Instant.now());
     }
 
     @GetMapping("/{id}")
     public ApiResponseDto<FloorResponse> getFloorById(@PathVariable UUID id) {
         FloorResponse data = floorService.getFloorById(id);
-        return new ApiResponseDto<>(true, "Floor fetched successfully", data, LocalDateTime.now());
+        return new ApiResponseDto<>(true, "Floor fetched successfully", data, Instant.now());
     }
 
     @PutMapping("/{id}")
     public ApiResponseDto<FloorResponse> updateFloor(@PathVariable UUID id, @Valid @RequestBody UpdateFloorRequest request) {
         FloorResponse data = floorService.updateFloor(id, request);
-        return new ApiResponseDto<>(true, "Floor updated successfully", data, LocalDateTime.now());
+        return new ApiResponseDto<>(true, "Floor updated successfully", data, Instant.now());
     }
 
     @DeleteMapping("/{id}")
     public ApiResponseDto<Void> deleteFloor(@PathVariable UUID id) {
         floorService.deleteFloor(id);
-        return new ApiResponseDto<>(true, "Floor deleted successfully", null, LocalDateTime.now());
+        return new ApiResponseDto<>(true, "Floor deleted successfully", null, Instant.now());
     }
 
     @GetMapping("/{id}/halls")
     public ApiResponseDto<List<HallResponse>> getHallsByFloor(@PathVariable UUID id) {
         List<HallResponse> data = floorService.getHallsByFloor(id);
-        return new ApiResponseDto<>(true, "Halls fetched successfully", data, LocalDateTime.now());
+        return new ApiResponseDto<>(true, "Halls fetched successfully", data, Instant.now());
     }
 }

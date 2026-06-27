@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -27,8 +27,7 @@ public class AdminService {
     private final ReservationRepository reservationRepository;
     private final AdminMapper adminMapper;
 
-    // Upgraded to AtomicBoolean for thread safety without needing a database table
-    // yet
+    // AtomicBoolean - thread safety (without needing a database table)
     private final AtomicBoolean maintenanceMode = new AtomicBoolean(false);
 
     @Transactional(readOnly = true)
@@ -36,7 +35,7 @@ public class AdminService {
         long totalUsers = userRepository.countByActiveTrue();
         long totalStalls = stallRepository.countByActiveTrue();
         long activeReservations = reservationRepository
-                .countByExpiresAtAfterAndStatus(LocalDateTime.now(), ReservationStatus.CONFIRMED);
+                .countByExpiresAtAfterAndStatus(Instant.now(), ReservationStatus.CONFIRMED);
 
         // Null protection for JPQL SUM() aggregation
         BigDecimal totalRevenue = Optional.ofNullable(

@@ -31,8 +31,6 @@ import com.bookfair.backend.repository.OrganizationMemberRepository;
 import com.bookfair.backend.repository.OrganizationRepository;
 import com.bookfair.backend.model.Organization;
 
-import com.bookfair.backend.security.CustomUserPrincipal;
-
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.context.ApplicationEventPublisher;
@@ -45,7 +43,8 @@ import org.springframework.transaction.annotation.Transactional;
 import static java.util.Objects.requireNonNull;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -53,250 +52,282 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ReservationService {
 
-    private final ReservationRepository reservationRepository;
-    private final UserRepository userRepository;
-    private final OrganizationMemberRepository memberRepository;
-    private final OrganizationRepository organizationRepository;
-    private final EventStallRepository eventStallRepository;
-    private final EventRepository eventRepository;
-    private final QRService qrCodeService;
-    private final GenreRepository genreRepository;
-    private final PricingEngineService pricingEngineService;
-    private final ReservationMapper reservationMapper;
-    private final ReservationAuthorizationService authorizationService;
-    private final ApplicationEventPublisher eventPublisher;
+        private final ReservationRepository reservationRepository;
+        private final UserRepository userRepository;
+        private final OrganizationMemberRepository memberRepository;
+        private final OrganizationRepository organizationRepository;
+        private final EventStallRepository eventStallRepository;
+        private final EventRepository eventRepository;
+        private final QRService qrCodeService;
+        private final GenreRepository genreRepository;
+        private final PricingEngineService pricingEngineService;
+        private final ReservationMapper reservationMapper;
+        private final ReservationAuthorizationService authorizationService;
+        private final ApplicationEventPublisher eventPublisher;
 
-    @Transactional(readOnly = true)
-    public List<ReservationResponse> getMyReservations(String username) {
-        User user = userRepository.findByUsernameAndActiveTrue(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.USER_NOT_FOUND));
+        @Transactional(readOnly = true)
+        public List<ReservationResponse> getMyReservations(String username) {
+                User user = userRepository.findByUsernameAndActiveTrue(username)
+                                .orElseThrow(() -> new ResourceNotFoundException("User not found",
+                                                ErrorCode.USER_NOT_FOUND));
 
-        return reservationRepository.findByUserId(user.getId()).stream()
-                .map(reservationMapper::toReservationResponse)
-                .toList();
-    }
-
-    @Transactional
-    public ReservationResponse createReservation(CreateReservationRequest request) {
-        requireNonNull(request, "request cannot be null");
-        User user = userRepository.findByIdAndActiveTrue(getCurrentUserId())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.USER_NOT_FOUND));
-
-        Event event = eventRepository.findByIdAndActiveTrue(request.getEventId())
-                .orElseThrow(() -> new ResourceNotFoundException("Event not found", ErrorCode.EVENT_NOT_FOUND));
-
-        Genre genre = genreRepository.findByIdAndActiveTrue(request.getGenreId())
-                .orElseThrow(() -> new ResourceNotFoundException("Genre not found", ErrorCode.GENRE_NOT_FOUND));
-
-        Organization organization = organizationRepository.findById(request.getOrganizationId())
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found", ErrorCode.ORGANIZATION_NOT_FOUND));
-
-        if (!memberRepository.existsByUserIdAndOrganizationId(user.getId(), organization.getId())) {
-            throw new BusinessException("User must belong to the organization to make a reservation on its behalf.",
-                    ErrorCode.BUSINESS_RULE_VIOLATION);
+                return reservationRepository.findByUserId(user.getId()).stream()
+                                .map(reservationMapper::toReservationResponse)
+                                .toList();
         }
 
-        List<EventStall> stalls = eventStallRepository.findAllForUpdate(request.getStallIds());
+        @Transactional
+        public ReservationResponse createReservation(CreateReservationRequest request) {
+                requireNonNull(request, "request cannot be null");
+                User user = userRepository.findByIdAndActiveTrue(getCurrentUserId())
+                                .orElseThrow(() -> new ResourceNotFoundException("User not found",
+                                                ErrorCode.USER_NOT_FOUND));
 
-        if (stalls.size() != request.getStallIds().size()) {
-            throw new BusinessException("One or more requested stalls could not be found.", ErrorCode.STALL_NOT_FOUND);
+                Event event = eventRepository.findByIdAndActiveTrue(request.getEventId())
+                                .orElseThrow(() -> new ResourceNotFoundException("Event not found",
+                                                ErrorCode.EVENT_NOT_FOUND));
+
+                Genre genre = genreRepository.findByIdAndActiveTrue(request.getGenreId())
+                                .orElseThrow(() -> new ResourceNotFoundException("Genre not found",
+                                                ErrorCode.GENRE_NOT_FOUND));
+
+                Organization organization = organizationRepository.findById(request.getOrganizationId())
+                                .orElseThrow(() -> new ResourceNotFoundException("Organization not found",
+                                                ErrorCode.ORGANIZATION_NOT_FOUND));
+
+                if (!memberRepository.existsByUserIdAndOrganizationId(user.getId(), organization.getId())) {
+                        throw new BusinessException(
+                                        "User must belong to the organization to make a reservation on its behalf.",
+                                        ErrorCode.BUSINESS_RULE_VIOLATION);
+                }
+
+                List<EventStall> stalls = eventStallRepository.findAllForUpdate(request.getStallIds());
+
+                if (stalls.size() != request.getStallIds().size()) {
+                        throw new BusinessException("One or more requested stalls could not be found.",
+                                        ErrorCode.STALL_NOT_FOUND);
+                }
+
+                if (stalls.isEmpty()) {
+                        throw new BusinessException("No valid stalls selected.", ErrorCode.BUSINESS_RULE_VIOLATION);
+                }
+
+                for (EventStall stall : stalls) {
+                        if (!stall.getEvent().getId().equals(event.getId())) {
+                                throw new BusinessException("Stall does not belong to this event.",
+                                                ErrorCode.BUSINESS_RULE_VIOLATION);
+                        }
+
+                        if (!stall.getStatus().name().equals("AVAILABLE")) {
+                                throw new StallUnavailableException("Stall is already booked or blocked.",
+                                                ErrorCode.STALL_UNAVAILABLE);
+                        }
+                }
+
+                Reservation reservation = new Reservation();
+                reservation.setUser(user);
+                reservation.setOrganization(organization);
+                reservation.setReservationCreatedBy(user);
+                reservation.setEvent(event);
+                reservation.setGenre(genre);
+
+                reservation.setReservationStartDateTime(
+                                request.getReservationStartDateTime() != null
+                                                ? request.getReservationStartDateTime()
+                                                : event.getStartDateTime());
+
+                reservation.setExpiresAt(Instant.now().plus(15, ChronoUnit.MINUTES));
+                reservation.setStatus(ReservationStatus.PENDING);
+
+                List<ReservationStall> reservationStalls = stalls.stream()
+                                .map(s -> {
+                                        s.setStatus(AvailabilityStatus.BLOCKED);
+
+                                        ReservationStall rs = new ReservationStall();
+                                        rs.setEventStall(s);
+                                        rs.setReservation(reservation);
+                                        rs.setPriceAtBooking(pricingEngineService.calculateFinalPrice(s));
+
+                                        return rs;
+                                })
+                                .toList();
+
+                BigDecimal totalPrice = reservationStalls.stream()
+                                .map(ReservationStall::getPriceAtBooking)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                reservation.setTotalPrice(totalPrice);
+                reservation.setReservedStalls(reservationStalls);
+
+                eventStallRepository.saveAll(stalls);
+                Reservation savedReservation = reservationRepository.save(reservation);
+
+                eventPublisher.publishEvent(new ReservationRequestReceivedEvent(user.getId(), user.getUsername(),
+                                user.getEmail(), savedReservation.getId(), event.getName()));
+
+                return reservationMapper.toReservationResponse(savedReservation);
         }
 
-        if (stalls.isEmpty()) {
-            throw new BusinessException("No valid stalls selected.", ErrorCode.BUSINESS_RULE_VIOLATION);
+        @Transactional
+        public void confirmReservation(UUID reservationId) {
+                Reservation reservation = reservationRepository
+                                .findByIdAndStatus(reservationId, ReservationStatus.PENDING)
+                                .orElseThrow(
+                                                () -> new ResourceNotFoundException("Reservation not found",
+                                                                ErrorCode.RESERVATION_NOT_FOUND));
+
+                User requestingUser = userRepository.findById(getCurrentUserId())
+                                .orElseThrow(() -> new ResourceNotFoundException("User not found",
+                                                ErrorCode.USER_NOT_FOUND));
+
+                if (!authorizationService.canConfirmReservation(requestingUser, reservation)) {
+                        throw new ForbiddenException("You cannot manage reservations for this organization.",
+                                        ErrorCode.FORBIDDEN);
+                }
+
+                if (reservation.getExpiresAt().isBefore(Instant.now())) {
+                        throw new BookingExpiredException("Your reservation timer has expired. Please start over.",
+                                        ErrorCode.BOOKING_EXPIRED);
+                }
+
+                reservation.setStatus(ReservationStatus.CONFIRMED);
+
+                String qrPayload = "RES-" + reservation.getId();
+                reservation.setQrCodePayload(qrPayload);
+                String qrCodeImage = qrCodeService.generateQRCode(qrPayload);
+
+                for (ReservationStall rs : reservation.getReservedStalls()) {
+                        EventStall stall = rs.getEventStall();
+                        stall.setStatus(AvailabilityStatus.BOOKED);
+                        eventStallRepository.save(stall);
+                }
+
+                reservationRepository.save(reservation);
+
+                eventPublisher.publishEvent(new ReservationConfirmedEvent(reservation.getUser().getId(),
+                                reservation.getUser().getUsername(), reservation.getUser().getEmail(),
+                                reservation.getId(),
+                                reservation.getEvent().getName(), qrCodeImage));
         }
 
-        for (EventStall stall : stalls) {
-            if (!stall.getEvent().getId().equals(event.getId())) {
-                throw new BusinessException("Stall does not belong to this event.", ErrorCode.BUSINESS_RULE_VIOLATION);
-            }
+        @Transactional
+        public void requestCancellation(UUID reservationId) {
+                Reservation reservation = reservationRepository.findById(reservationId)
+                                .orElseThrow(
+                                                () -> new ResourceNotFoundException("Reservation not found",
+                                                                ErrorCode.RESERVATION_NOT_FOUND));
 
-            if (!stall.getStatus().name().equals("AVAILABLE")) {
-                throw new StallUnavailableException("Stall is already booked or blocked.", ErrorCode.STALL_UNAVAILABLE);
-            }
+                User requestingUser = userRepository.findById(getCurrentUserId())
+                                .orElseThrow(() -> new ResourceNotFoundException("User not found",
+                                                ErrorCode.USER_NOT_FOUND));
+
+                if (!authorizationService.canManageReservation(requestingUser, reservation)) {
+                        throw new ForbiddenException("You cannot cancel this reservation.", ErrorCode.FORBIDDEN);
+                }
+
+                if (!reservation.getStatus().equals(ReservationStatus.CONFIRMED)
+                                && !reservation.getStatus().equals(ReservationStatus.PENDING)) {
+                        throw new BusinessException(
+                                        "Only confirmed or pending reservations can be cancelled for a refund.",
+                                        ErrorCode.REFUND_FAILED);
+                }
+
+                reservation.setStatus(ReservationStatus.REFUND_PENDING);
+                reservationRepository.save(reservation);
+
+                eventPublisher.publishEvent(
+                                new ReservationRefundPendingEvent(reservation.getUser().getId(),
+                                                reservation.getUser().getUsername(),
+                                                reservation.getUser().getEmail(), reservation.getId(),
+                                                reservation.getEvent().getName()));
         }
 
-        Reservation reservation = new Reservation();
-        reservation.setUser(user);
-        reservation.setOrganization(organization);
-        reservation.setReservationCreatedBy(user);
-        reservation.setEvent(event);
-        reservation.setGenre(genre);
+        @Transactional
+        public void approveRefund(UUID reservationId) {
+                Reservation reservation = reservationRepository
+                                .findByIdAndStatus(reservationId, ReservationStatus.REFUND_PENDING)
+                                .orElseThrow(
+                                                () -> new ResourceNotFoundException("Reservation not found",
+                                                                ErrorCode.RESERVATION_NOT_FOUND));
 
-        reservation.setReservationStartDateTime(
-                request.getReservationStartDateTime() != null
-                        ? request.getReservationStartDateTime()
-                        : event.getStartDateTime());
+                User requestingUser = userRepository.findById(getCurrentUserId())
+                                .orElseThrow(() -> new ResourceNotFoundException("User not found",
+                                                ErrorCode.USER_NOT_FOUND));
 
-        reservation.setExpiresAt(LocalDateTime.now().plusMinutes(15));
-        reservation.setStatus(ReservationStatus.PENDING);
+                if (!authorizationService.canApproveRefund(requestingUser, reservation)) {
+                        throw new ForbiddenException("You cannot approve refunds for this reservation.",
+                                        ErrorCode.FORBIDDEN);
+                }
 
-        List<ReservationStall> reservationStalls = stalls.stream()
-                .map(s -> {
-                    s.setStatus(AvailabilityStatus.BLOCKED);
+                reservation.setStatus(ReservationStatus.REFUNDED);
 
-                    ReservationStall rs = new ReservationStall();
-                    rs.setEventStall(s);
-                    rs.setReservation(reservation);
-                    rs.setPriceAtBooking(pricingEngineService.calculateFinalPrice(s));
+                for (ReservationStall rs : reservation.getReservedStalls()) {
+                        EventStall stall = rs.getEventStall();
+                        stall.setStatus(AvailabilityStatus.AVAILABLE);
+                        eventStallRepository.save(stall);
+                }
 
-                    return rs;
-                })
-                .toList();
+                reservationRepository.save(reservation);
 
-        BigDecimal totalPrice = reservationStalls.stream()
-                .map(ReservationStall::getPriceAtBooking)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        reservation.setTotalPrice(totalPrice);
-        reservation.setReservedStalls(reservationStalls);
-
-        eventStallRepository.saveAll(stalls);
-        Reservation savedReservation = reservationRepository.save(reservation);
-
-        eventPublisher.publishEvent(new ReservationRequestReceivedEvent(user.getId(), user.getUsername(),
-                user.getEmail(), savedReservation.getId(), event.getName()));
-
-        return reservationMapper.toReservationResponse(savedReservation);
-    }
-
-    @Transactional
-    public void confirmReservation(UUID reservationId) {
-        Reservation reservation = reservationRepository.findByIdAndStatus(reservationId, ReservationStatus.PENDING)
-                .orElseThrow(
-                        () -> new ResourceNotFoundException("Reservation not found", ErrorCode.RESERVATION_NOT_FOUND));
-
-        User requestingUser = userRepository.findById(getCurrentUserId())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.USER_NOT_FOUND));
-
-        if (!authorizationService.canConfirmReservation(requestingUser, reservation)) {
-            throw new ForbiddenException("You cannot manage reservations for this organization.", ErrorCode.FORBIDDEN);
+                eventPublisher.publishEvent(
+                                new ReservationRefundedEvent(reservation.getUser().getId(),
+                                                reservation.getUser().getUsername(),
+                                                reservation.getUser().getEmail(), reservation.getId(),
+                                                reservation.getEvent().getName()));
         }
 
-        if (reservation.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new BookingExpiredException("Your reservation timer has expired. Please start over.",
-                    ErrorCode.BOOKING_EXPIRED);
+        @Transactional(readOnly = true)
+        public Page<ReservationResponse> getAllReservations(Pageable pageable) {
+                return reservationRepository.findAll(pageable)
+                                .map(reservationMapper::toReservationResponse);
         }
 
-        reservation.setStatus(ReservationStatus.CONFIRMED);
+        @Transactional(readOnly = true)
+        public ReservationResponse getReservationById(UUID id) {
+                Reservation reservation = reservationRepository.findById(id)
+                                .orElseThrow(
+                                                () -> new ResourceNotFoundException("Reservation not found",
+                                                                ErrorCode.RESERVATION_NOT_FOUND));
 
-        String qrPayload = "RES-" + reservation.getId();
-        reservation.setQrCodePayload(qrPayload);
-        String qrCodeImage = qrCodeService.generateQRCode(qrPayload);
+                checkReadAccess(reservation);
 
-        for (ReservationStall rs : reservation.getReservedStalls()) {
-            EventStall stall = rs.getEventStall();
-            stall.setStatus(AvailabilityStatus.BOOKED);
-            eventStallRepository.save(stall);
+                return reservationMapper.toReservationResponse(reservation);
         }
 
-        reservationRepository.save(reservation);
+        @Transactional(readOnly = true)
+        public ReservationDetailResponse getReservationDetails(UUID id) {
+                Reservation reservation = reservationRepository.findById(id)
+                                .orElseThrow(
+                                                () -> new ResourceNotFoundException("Reservation not found",
+                                                                ErrorCode.RESERVATION_NOT_FOUND));
 
-        eventPublisher.publishEvent(new ReservationConfirmedEvent(reservation.getUser().getId(),
-                reservation.getUser().getUsername(), reservation.getUser().getEmail(), reservation.getId(),
-                reservation.getEvent().getName(), qrCodeImage));
-    }
+                checkReadAccess(reservation);
 
-    @Transactional
-    public void requestCancellation(UUID reservationId) {
-        Reservation reservation = reservationRepository.findById(reservationId)
-                .orElseThrow(
-                        () -> new ResourceNotFoundException("Reservation not found", ErrorCode.RESERVATION_NOT_FOUND));
-
-        User requestingUser = userRepository.findById(getCurrentUserId())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.USER_NOT_FOUND));
-
-        if (!authorizationService.canManageReservation(requestingUser, reservation)) {
-            throw new ForbiddenException("You cannot cancel this reservation.", ErrorCode.FORBIDDEN);
+                return reservationMapper.toReservationDetailResponse(reservation);
         }
 
-        if (!reservation.getStatus().equals(ReservationStatus.CONFIRMED)
-                && !reservation.getStatus().equals(ReservationStatus.PENDING)) {
-            throw new BusinessException("Only confirmed or pending reservations can be cancelled for a refund.",
-                    ErrorCode.REFUND_FAILED);
+        private void checkReadAccess(Reservation reservation) {
+                User requestingUser = userRepository.findById(getCurrentUserId())
+                                .orElseThrow(() -> new ResourceNotFoundException("User not found",
+                                                ErrorCode.USER_NOT_FOUND));
+
+                if (!authorizationService.canViewReservation(requestingUser, reservation)) {
+                        throw new ForbiddenException("You do not have permission to view this reservation.",
+                                        ErrorCode.FORBIDDEN);
+                }
         }
 
-        reservation.setStatus(ReservationStatus.REFUND_PENDING);
-        reservationRepository.save(reservation);
+        private UUID getCurrentUserId() {
+                Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        eventPublisher.publishEvent(
-                new ReservationRefundPendingEvent(reservation.getUser().getId(), reservation.getUser().getUsername(),
-                        reservation.getUser().getEmail(), reservation.getId(), reservation.getEvent().getName()));
-    }
+                if (authentication != null && authentication.getPrincipal() instanceof UUID userId) {
+                        return userId;
+                }
 
-    @Transactional
-    public void approveRefund(UUID reservationId) {
-        Reservation reservation = reservationRepository
-                .findByIdAndStatus(reservationId, ReservationStatus.REFUND_PENDING)
-                .orElseThrow(
-                        () -> new ResourceNotFoundException("Reservation not found", ErrorCode.RESERVATION_NOT_FOUND));
+                if (authentication != null && authentication.getPrincipal() instanceof String userIdString) {
+                        return UUID.fromString(userIdString);
+                }
 
-        User requestingUser = userRepository.findById(getCurrentUserId())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.USER_NOT_FOUND));
-
-        if (!authorizationService.canApproveRefund(requestingUser, reservation)) {
-            throw new ForbiddenException("You cannot approve refunds for this reservation.", ErrorCode.FORBIDDEN);
+                throw new BusinessException("Unable to resolve current user", ErrorCode.UNAUTHORIZED);
         }
-
-        reservation.setStatus(ReservationStatus.REFUNDED);
-
-        for (ReservationStall rs : reservation.getReservedStalls()) {
-            EventStall stall = rs.getEventStall();
-            stall.setStatus(AvailabilityStatus.AVAILABLE);
-            eventStallRepository.save(stall);
-        }
-
-        reservationRepository.save(reservation);
-
-        eventPublisher.publishEvent(
-                new ReservationRefundedEvent(reservation.getUser().getId(), reservation.getUser().getUsername(),
-                        reservation.getUser().getEmail(), reservation.getId(), reservation.getEvent().getName()));
-    }
-
-    @Transactional(readOnly = true)
-    public Page<ReservationResponse> getAllReservations(Pageable pageable) {
-        return reservationRepository.findAll(pageable)
-                .map(reservationMapper::toReservationResponse);
-    }
-
-    @Transactional(readOnly = true)
-    public ReservationResponse getReservationById(UUID id) {
-        Reservation reservation = reservationRepository.findById(id)
-                .orElseThrow(
-                        () -> new ResourceNotFoundException("Reservation not found", ErrorCode.RESERVATION_NOT_FOUND));
-
-        checkReadAccess(reservation);
-
-        return reservationMapper.toReservationResponse(reservation);
-    }
-
-    @Transactional(readOnly = true)
-    public ReservationDetailResponse getReservationDetails(UUID id) {
-        Reservation reservation = reservationRepository.findById(id)
-                .orElseThrow(
-                        () -> new ResourceNotFoundException("Reservation not found", ErrorCode.RESERVATION_NOT_FOUND));
-
-        checkReadAccess(reservation);
-
-        return reservationMapper.toReservationDetailResponse(reservation);
-    }
-
-    private void checkReadAccess(Reservation reservation) {
-        User requestingUser = userRepository.findById(getCurrentUserId())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.USER_NOT_FOUND));
-
-        if (!authorizationService.canViewReservation(requestingUser, reservation)) {
-            throw new ForbiddenException("You do not have permission to view this reservation.", ErrorCode.FORBIDDEN);
-        }
-    }
-
-    private UUID getCurrentUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
-        if (authentication != null && authentication.getPrincipal() instanceof CustomUserPrincipal principal) {
-            return principal.getId();
-        }
-
-        throw new BusinessException("Unable to resolve current user", ErrorCode.UNAUTHORIZED);
-    }
 }

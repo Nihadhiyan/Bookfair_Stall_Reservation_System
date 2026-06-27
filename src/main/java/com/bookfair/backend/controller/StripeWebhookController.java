@@ -31,11 +31,12 @@ public class StripeWebhookController {
             @RequestHeader("Stripe-Signature") String sigHeader) {
 
         try {
-            // 1. Verify the signature and construct the event
+            // Verifying the signature and construct the event
             // This throws an exception if the payload was altered or signature is invalid
+            // need to hande it
             Webhook.constructEvent(payload, sigHeader, endpointSecret);
 
-            // 2. Pass the validated payload to your PaymentService logic
+            // Passing the validated payload to your PaymentService logic
             paymentService.processWebhook(payload, sigHeader, "STRIPE");
 
             return ResponseEntity.ok("Success");

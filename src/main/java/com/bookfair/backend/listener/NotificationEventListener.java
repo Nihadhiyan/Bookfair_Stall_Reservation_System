@@ -22,7 +22,7 @@ import com.bookfair.backend.event.reservation.ReservationRefundPendingEvent;
 import com.bookfair.backend.event.reservation.ReservationRefundedEvent;
 import com.bookfair.backend.event.reservation.ReservationExpiredEvent;
 import com.bookfair.backend.model.User;
-import com.bookfair.backend.model.SystemRole;
+import com.bookfair.backend.model.User.SystemRole;
 import com.bookfair.backend.model.OrganizationMember;
 import com.bookfair.backend.repository.UserRepository;
 import com.bookfair.backend.repository.OrganizationMemberRepository;

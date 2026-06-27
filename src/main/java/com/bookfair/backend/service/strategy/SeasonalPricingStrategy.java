@@ -1,6 +1,7 @@
 package com.bookfair.backend.service.strategy;
 
 import java.math.BigDecimal;
+import java.time.ZoneOffset;
 import org.springframework.stereotype.Component;
 
 @Component("SEASONAL")
@@ -10,7 +11,7 @@ public class SeasonalPricingStrategy implements PricingStrategy {
     public boolean matches(String conditionValue, PricingContext context) {
         if (conditionValue == null || context.eventStartDate() == null) return false;
         
-        int month = context.eventStartDate().getMonthValue();
+        int month = context.eventStartDate().atZone(ZoneOffset.UTC).getMonthValue();
         
         if (conditionValue.equalsIgnoreCase("SUMMER")) {
             return month >= 6 && month <= 8; // June, July, August

@@ -10,8 +10,6 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-import com.bookfair.backend.security.CustomUserPrincipal;
-
 @Configuration
 @EnableJpaAuditing(auditorAwareRef = "auditorProvider")
 public class AuditConfig {
@@ -32,8 +30,8 @@ public class AuditConfig {
 
             Object principal = authentication.getPrincipal();
 
-            if (principal instanceof CustomUserPrincipal userPrincipal) {
-                return Optional.of(userPrincipal.getId());
+            if (principal instanceof UUID userId) {
+                return Optional.of(userId);
             }
 
             return Optional.of(SYSTEM_USER_ID);

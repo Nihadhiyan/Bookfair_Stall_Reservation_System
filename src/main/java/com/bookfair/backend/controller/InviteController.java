@@ -1,19 +1,18 @@
 package com.bookfair.backend.controller;
 
-import com.bookfair.backend.model.SystemRole;
+import com.bookfair.backend.dto.common.ApiResponseDto;
 import com.bookfair.backend.dto.organization.request.InviteRequest;
-import com.bookfair.backend.model.OrganizationRole;
-import com.bookfair.backend.security.CustomUserPrincipal;
 import com.bookfair.backend.service.InviteService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
+import java.time.Instant;
+import java.util.UUID;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.security.access.AccessDeniedException;
-
-
 
 @RestController
 @RequestMapping("/api/organizations/invites")
@@ -23,30 +22,20 @@ public class InviteController {
     private final InviteService inviteService;
 
     @PostMapping
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Void> sendInvite(
-            @Valid @RequestBody InviteRequest request,
-            @AuthenticationPrincipal CustomUserPrincipal principal) {
-
-        boolean isSuperAdmin = SystemRole.SUPER_ADMIN.name().equals(principal.getSystemRole());
-        String orgIdStr = request.getOrgId().toString();
-        boolean isOrgAdmin = principal.getOrgRoles() != null &&
-                OrganizationRole.ORG_ADMIN.name().equals(principal.getOrgRoles().get(orgIdStr));
-
-        if (!isSuperAdmin && !isOrgAdmin) {
-            throw new AccessDeniedException("You do not have permission to invite users to this organization");
-        }
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('ORG_' + #request.orgId + '_ORG_ADMIN')")
+    public ResponseEntity<ApiResponseDto<Void>> sendInvite(
+            @Valid @RequestBody InviteRequest request) {
 
         inviteService.inviteUser(request);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(new ApiResponseDto<>(true, "Invite sent successfully", null, Instant.now()));
     }
 
     @PostMapping("/accept")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Void> acceptInvite(
+    public ResponseEntity<ApiResponseDto<Void>> acceptInvite(
             @RequestParam String token,
-            @AuthenticationPrincipal CustomUserPrincipal principal) {
-        inviteService.acceptInvite(token, principal.getId());
-        return ResponseEntity.ok().build();
+            @AuthenticationPrincipal UUID userId) {
+        inviteService.acceptInvite(token, userId);
+        return ResponseEntity.ok(new ApiResponseDto<>(true, "Invite accepted successfully", null, Instant.now()));
     }
 }

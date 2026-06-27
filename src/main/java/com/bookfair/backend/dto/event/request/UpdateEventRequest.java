@@ -1,6 +1,6 @@
 package com.bookfair.backend.dto.event.request;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -33,10 +33,10 @@ public class UpdateEventRequest {
     private Event.EventType eventType;
 
     @NotNull(message = "Event start date is required")
-    private LocalDateTime startDateTime;
+    private Instant startDateTime;
 
     @NotNull(message = "Event end date is required")
-    private LocalDateTime endDateTime;
+    private Instant endDateTime;
 
     @NotNull(message = "Event status is required")
     private Event.EventStatus status;

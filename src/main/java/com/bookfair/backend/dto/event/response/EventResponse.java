@@ -1,6 +1,6 @@
 package com.bookfair.backend.dto.event.response;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 import com.bookfair.backend.dto.common.SimpleOrganizationDto;
@@ -20,8 +20,8 @@ public class EventResponse {
     private String eventType;
     private SimpleOrganizationDto organizer;
     private UUID venueId;
-    private LocalDateTime startDateTime;
-    private LocalDateTime endDateTime;
+    private Instant startDateTime;
+    private Instant endDateTime;
     private String status;
     private Boolean active;
 }

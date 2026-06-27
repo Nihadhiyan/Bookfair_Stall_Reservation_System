@@ -1,6 +1,6 @@
 package com.bookfair.backend.controller;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -38,30 +38,30 @@ public class BuildingController {
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponseDto<BuildingResponse> createBuilding(@Valid @RequestBody CreateBuildingRequest request) {
         BuildingResponse data = buildingService.createBuilding(request);
-        return new ApiResponseDto<BuildingResponse>(true, "Building created successfully", data, LocalDateTime.now());
+        return new ApiResponseDto<BuildingResponse>(true, "Building created successfully", data, Instant.now());
     }
 
     @GetMapping("/{id}")
     public ApiResponseDto<BuildingResponse> getBuildingById(@PathVariable UUID id) {
         BuildingResponse data = buildingService.getBuildingById(id);
-        return new ApiResponseDto<BuildingResponse>(true, "Building fetched successfully", data, LocalDateTime.now());
+        return new ApiResponseDto<BuildingResponse>(true, "Building fetched successfully", data, Instant.now());
     }
 
     @PutMapping("/{id}")
     public ApiResponseDto<BuildingResponse> updateBuilding(@PathVariable UUID id, @Valid @RequestBody UpdateBuildingRequest request) {
         BuildingResponse data = buildingService.updateBuilding(id, request);
-        return new ApiResponseDto<BuildingResponse>(true, "Building updated successfully", data, LocalDateTime.now());
+        return new ApiResponseDto<BuildingResponse>(true, "Building updated successfully", data, Instant.now());
     }
 
     @DeleteMapping("/{id}")
     public ApiResponseDto<Void> deleteBuilding(@PathVariable UUID id) {
         buildingService.deleteBuilding(id);
-        return new ApiResponseDto<Void>(true, "Building deleted successfully", null, LocalDateTime.now());
+        return new ApiResponseDto<Void>(true, "Building deleted successfully", null, Instant.now());
     }
 
     @GetMapping("/{id}/floors")
     public ApiResponseDto<List<FloorResponse>> getFloorsByBuilding(@PathVariable UUID id) {
         List<FloorResponse> data = buildingService.getFloorsByBuilding(id);
-        return new ApiResponseDto<List<FloorResponse>>(true, "Floors fetched successfully", data, LocalDateTime.now());
+        return new ApiResponseDto<List<FloorResponse>>(true, "Floors fetched successfully", data, Instant.now());
     }
 }

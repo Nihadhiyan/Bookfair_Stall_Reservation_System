@@ -1,9 +1,9 @@
 package com.bookfair.backend.service.strategy;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public record PricingContext(
         int durationDays,
         String orgType,
-        LocalDateTime eventStartDate
+        Instant eventStartDate
 ) {}

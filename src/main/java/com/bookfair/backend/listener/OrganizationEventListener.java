@@ -1,6 +1,5 @@
 package com.bookfair.backend.listener;
 
-
 import java.util.List;
 
 import org.springframework.stereotype.Component;
@@ -20,18 +19,12 @@ public class OrganizationEventListener {
 
     private final OrganizationMemberRepository memberRepository;
 
-    // @EventListener was removed.
-    // AFTER_COMMIT is used to guarantee the organization capability updates have
-    // been committed to the database before processing this event.
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onOrganizationCapabilityChanged(OrganizationCapabilityChangedEvent event) {
-        // Capability changes affect the Organization entity, not User fields directly.
-        // User role reassignment would require business logic in OrganizationService.
-        // No-op here until that logic is implemented.
         log.info("Capability changed for organization {}", event.organizationId());
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
     public void onOrganizationDeactivated(OrganizationDeactivatedEvent event) {
         log.info("Processing deactivation for organization: {}", event.organizationId());
 

@@ -1,5 +1,6 @@
 package com.bookfair.backend.controller;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.bookfair.backend.dto.common.ApiResponseDto;
 import com.bookfair.backend.dto.stall.request.CreateStallRequest;
 import com.bookfair.backend.dto.stall.request.UpdateStallRequest;
 import com.bookfair.backend.dto.stall.response.StallResponse;
@@ -35,48 +37,53 @@ public class StallController {
 
     @GetMapping("/hall/{hallId}")
     @PreAuthorize("hasAnyRole('USER', 'ORG_ADMIN', 'SUPER_ADMIN')")
-    public ResponseEntity<List<StallResponse>> getStallsByHall(@PathVariable UUID hallId) {
-        return ResponseEntity.ok(stallService.getAllStallsForHall(hallId));
+    public ResponseEntity<ApiResponseDto<List<StallResponse>>> getStallsByHall(@PathVariable UUID hallId) {
+        List<StallResponse> data = stallService.getAllStallsForHall(hallId);
+        return ResponseEntity.ok(new ApiResponseDto<>(true, "Stalls fetched successfully", data, Instant.now()));
     }
 
     @GetMapping("/{stallId}")
     @PreAuthorize("hasAnyRole('USER', 'ORG_ADMIN', 'SUPER_ADMIN')")
-    public ResponseEntity<StallResponse> getStallById(@PathVariable UUID stallId) {
-        return ResponseEntity.ok(stallService.getStallById(stallId));
+    public ResponseEntity<ApiResponseDto<StallResponse>> getStallById(@PathVariable UUID stallId) {
+        StallResponse data = stallService.getStallById(stallId);
+        return ResponseEntity.ok(new ApiResponseDto<>(true, "Stall fetched successfully", data, Instant.now()));
     }
 
     @PostMapping
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ORG_ADMIN')")
-    public ResponseEntity<List<StallResponse>> createStalls(@Valid @RequestBody List<CreateStallRequest> requests, Authentication authentication) {
+    public ResponseEntity<ApiResponseDto<List<StallResponse>>> createStalls(@Valid @RequestBody List<CreateStallRequest> requests, Authentication authentication) {
         String currentUser = (authentication != null) ? authentication.getName() : "system";
         List<StallResponse> createdStalls = stallService.createStalls(requests, currentUser);
-        return ResponseEntity.status(HttpStatus.CREATED).body(createdStalls);
+        return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponseDto<>(true, "Stalls created successfully", createdStalls, Instant.now()));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ORG_ADMIN')")
-    public ResponseEntity<StallResponse> updateStall(@PathVariable UUID id, @Valid @RequestBody UpdateStallRequest request) {
-        return ResponseEntity.ok(stallService.updateStall(id, request));
+    public ResponseEntity<ApiResponseDto<StallResponse>> updateStall(@PathVariable UUID id, @Valid @RequestBody UpdateStallRequest request) {
+        StallResponse data = stallService.updateStall(id, request);
+        return ResponseEntity.ok(new ApiResponseDto<>(true, "Stall updated successfully", data, Instant.now()));
     }
 
     @PatchMapping("/{stallId}/status")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ORG_ADMIN')")
-    public ResponseEntity<StallResponse> updateStallStatus(
+    public ResponseEntity<ApiResponseDto<StallResponse>> updateStallStatus(
             @PathVariable UUID stallId, 
             @RequestParam String status) {
-        return ResponseEntity.ok(stallService.updateStallStatus(stallId, status));
+        StallResponse data = stallService.updateStallStatus(stallId, status);
+        return ResponseEntity.ok(new ApiResponseDto<>(true, "Stall status updated successfully", data, Instant.now()));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
-    public ResponseEntity<Void> deactivateStall(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponseDto<Void>> deactivateStall(@PathVariable UUID id) {
         stallService.deactivateStall(List.of(id));
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(new ApiResponseDto<>(true, "Stall deactivated successfully", null, Instant.now()));
     }
 
     @GetMapping("/available")
     @PreAuthorize("permitAll()")
-    public ResponseEntity<List<StallResponse>> getAvailableStalls() {
-        return ResponseEntity.ok(stallService.getAvailableStalls());
+    public ResponseEntity<ApiResponseDto<List<StallResponse>>> getAvailableStalls() {
+        List<StallResponse> data = stallService.getAvailableStalls();
+        return ResponseEntity.ok(new ApiResponseDto<>(true, "Available stalls fetched successfully", data, Instant.now()));
     }
 }

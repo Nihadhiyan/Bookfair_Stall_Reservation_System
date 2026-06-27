@@ -17,8 +17,7 @@ public class NotificationService {
 
     public void notify(String recipient, String subject, String template, Map<String, Object> vars) {
         // Iterate through all injected channels and trigger send().
-        // In the future, this can be filtered by channel.supports("EMAIL") or "SMS"
-        // based on user preferences.
+        // this can be filtered by channel.supports("EMAIL") or "SMS"
         for (NotificationChannel channel : channels) {
             channel.send(recipient, subject, template, vars);
         }

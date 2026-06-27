@@ -10,7 +10,7 @@ import lombok.Setter;
 import lombok.ToString;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -60,11 +60,11 @@ public class Reservation extends BaseEntity {
     @EqualsAndHashCode.Exclude
     private List<ReservationStall> reservedStalls;
 
-    @Column(name = "reservation_start_time", nullable = false)
-    private LocalDateTime reservationStartDateTime;
+    @Column(name = "reservation_start_time", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
+    private Instant reservationStartDateTime;
 
-    @Column(name = "expires_at", nullable = false)
-    private LocalDateTime expiresAt;
+    @Column(name = "expires_at", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
+    private Instant expiresAt;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

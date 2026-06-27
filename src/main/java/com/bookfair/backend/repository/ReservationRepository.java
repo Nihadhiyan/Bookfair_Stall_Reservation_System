@@ -12,7 +12,7 @@ import org.springframework.data.repository.query.Param;
 import com.bookfair.backend.model.User;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -32,9 +32,9 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
 
     List<Reservation> findByEventId(UUID eventId);
 
-    List<Reservation> findByExpiresAtBeforeAndStatus(LocalDateTime expiresAt, Reservation.ReservationStatus status);
+    List<Reservation> findByExpiresAtBeforeAndStatus(Instant expiresAt, Reservation.ReservationStatus status);
 
-    long countByExpiresAtAfterAndStatus(LocalDateTime date, ReservationStatus status);
+    long countByExpiresAtAfterAndStatus(Instant date, ReservationStatus status);
 
     @Query("SELECT COALESCE(SUM(r.totalPrice), 0) FROM Reservation r WHERE r.status = :status")
     BigDecimal sumTotalPriceByStatus(@Param("status") ReservationStatus status);

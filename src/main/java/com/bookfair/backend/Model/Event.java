@@ -1,6 +1,6 @@
 package com.bookfair.backend.model;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -48,11 +48,11 @@ public class Event extends BaseEntity {
     @NotBlank(message = "Book fair name is required")
     private String name;
 
-    @Column(name = "start_date", nullable = false)
-    private LocalDateTime startDateTime;
+    @Column(name = "start_date", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
+    private Instant startDateTime;
 
-    @Column(name = "end_date", nullable = false)
-    private LocalDateTime endDateTime;
+    @Column(name = "end_date", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
+    private Instant endDateTime;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "event_type", nullable = false)

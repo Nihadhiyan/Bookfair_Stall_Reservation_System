@@ -1,6 +1,6 @@
 package com.bookfair.backend.controller;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -41,7 +41,7 @@ public class VenueController {
     public ResponseEntity<ApiResponseDto<VenueResponse>> createVenue(@RequestBody @Valid CreateVenueRequest request) {
         VenueResponse response = venueService.createVenue(request);
         return ResponseEntity
-                .ok(new ApiResponseDto<>(true, "Venue created successfully", response, LocalDateTime.now()));
+                .ok(new ApiResponseDto<>(true, "Venue created successfully", response, Instant.now()));
     }
 
     @GetMapping
@@ -49,21 +49,21 @@ public class VenueController {
             @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
         Page<VenueResponse> response = venueService.getAllVenues(pageable);
         return ResponseEntity
-                .ok(new ApiResponseDto<>(true, "Venues retrieved successfully", response, LocalDateTime.now()));
+                .ok(new ApiResponseDto<>(true, "Venues retrieved successfully", response, Instant.now()));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponseDto<VenueResponse>> getVenue(@PathVariable UUID id) {
         VenueResponse response = venueService.getVenue(id);
         return ResponseEntity
-                .ok(new ApiResponseDto<>(true, "Venue retrieved successfully", response, LocalDateTime.now()));
+                .ok(new ApiResponseDto<>(true, "Venue retrieved successfully", response, Instant.now()));
     }
 
     @GetMapping("/{id}/map")
     public ResponseEntity<ApiResponseDto<VenueMapResponse>> getVenueMap(@PathVariable UUID id) {
         VenueMapResponse response = venueService.getVenueMap(id);
         return ResponseEntity
-                .ok(new ApiResponseDto<>(true, "Venue map retrieved successfully", response, LocalDateTime.now()));
+                .ok(new ApiResponseDto<>(true, "Venue map retrieved successfully", response, Instant.now()));
     }
 
     @PutMapping("/{id}")
@@ -71,27 +71,27 @@ public class VenueController {
             @Valid @RequestBody UpdateVenueRequest request) {
         VenueResponse response = venueService.updateVenue(id, request);
         return ResponseEntity
-                .ok(new ApiResponseDto<>(true, "Venue updated successfully", response, LocalDateTime.now()));
+                .ok(new ApiResponseDto<>(true, "Venue updated successfully", response, Instant.now()));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponseDto<Void>> deleteVenue(@PathVariable UUID id) {
         venueService.deleteVenue(id);
-        return ResponseEntity.ok(new ApiResponseDto<>(true, "Venue deleted successfully", null, LocalDateTime.now()));
+        return ResponseEntity.ok(new ApiResponseDto<>(true, "Venue deleted successfully", null, Instant.now()));
     }
 
     @GetMapping("/{venueId}/buildings")
     public ResponseEntity<ApiResponseDto<List<BuildingResponse>>> getBuildingsByVenue(@PathVariable UUID venueId) {
         List<BuildingResponse> response = venueService.getBuildingsByVenue(venueId);
         return ResponseEntity
-                .ok(new ApiResponseDto<>(true, "Buildings retrieved successfully", response, LocalDateTime.now()));
+                .ok(new ApiResponseDto<>(true, "Buildings retrieved successfully", response, Instant.now()));
     }
 
     @GetMapping("/{venueId}/markers")
     public ResponseEntity<ApiResponseDto<Object>> getVenueMarkers(@PathVariable UUID venueId) {
         Object response = venueService.getMarkersByVenue(venueId);
         return ResponseEntity
-                .ok(new ApiResponseDto<>(true, "Markers retrieved successfully", response, LocalDateTime.now()));
+                .ok(new ApiResponseDto<>(true, "Markers retrieved successfully", response, Instant.now()));
     }
 
 }

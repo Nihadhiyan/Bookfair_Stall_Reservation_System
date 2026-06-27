@@ -56,7 +56,7 @@ public class GlobalExceptionHandler {
                                                 ErrorCode.VALIDATION_ERROR));
         }
 
-        @ExceptionHandler({NullPointerException.class, IllegalArgumentException.class})
+        @ExceptionHandler({ NullPointerException.class, IllegalArgumentException.class })
         public ResponseEntity<ErrorResponse> handleValidationExceptions(RuntimeException ex) {
                 // We log this as a WARN, not an ERROR, because it's a bad client request, not a
                 // server failure.

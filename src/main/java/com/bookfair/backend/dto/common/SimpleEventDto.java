@@ -1,6 +1,6 @@
 package com.bookfair.backend.dto.common;
 
-import java.time.LocalDate;
+import java.time.Instant;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -16,7 +16,7 @@ public class SimpleEventDto {
 
     private String name;
 
-    private LocalDate startDate;
+    private Instant startDate;
     
-    private LocalDate endDate;
+    private Instant endDate;
 }

@@ -1,6 +1,6 @@
 package com.bookfair.backend.dto.common;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
@@ -18,5 +18,5 @@ public class ApiResponseDto<T> {
     private boolean success;
     private String message;
     private T data;
-    private LocalDateTime timestamp;
+    private Instant timestamp;
 }

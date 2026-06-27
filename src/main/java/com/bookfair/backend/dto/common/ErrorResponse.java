@@ -1,6 +1,6 @@
 package com.bookfair.backend.dto.common;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import org.springframework.http.HttpStatus;
 
@@ -18,7 +18,7 @@ import lombok.Setter;
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ErrorResponse {
-    private LocalDateTime timestamp;
+    private Instant timestamp;
     private int status;
     private String errorMessage;
     private ErrorCode code;
@@ -26,7 +26,7 @@ public class ErrorResponse {
     
     public static ErrorResponse build(HttpStatus status, String errorMessage, Object details, ErrorCode code) {
         ErrorResponse response = new ErrorResponse();
-        response.timestamp = LocalDateTime.now();
+        response.timestamp = Instant.now();
         response.status = status.value();
         response.errorMessage = errorMessage;
         response.details = details;
